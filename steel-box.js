@@ -19,13 +19,26 @@ function initScene() {
     return { scene, camera, renderer };
 }
 
+function getURLParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+        length: parseInt(urlParams.get('len')) || 380,  // Default if not specified
+        width: parseInt(urlParams.get('wid')) || 207,
+        height: parseInt(urlParams.get('hei')) || 200,
+        enableHandles: urlParams.get('handle') === 'true',
+        enableHemming: urlParams.get('hem') === 'true',
+        enablePerforation: urlParams.get('perf') === 'true'
+    };
+}
+const params = getURLParameters();
+
 // Updated dimensions
 const dims = {
-    length: 1000,
-    width: 300,
-    height: 400,
+    length: params.length,
+    width: params.width,
+    height: params.height,
     thickness: 2,
-    // Handle dimensions
+    // Handle dimensions remain constant
     basePlateWidth: 140,
     basePlateHeight: 100,
     basePlateThickness: 3,
@@ -39,10 +52,12 @@ const dims = {
     stepHeight: 8,
     stepInset: 8
 };
+
+// Configuration object
 const config = {
-   enableHemming: true,
-   enableHandles: false,
-   enablePerforation: false
+    enableHemming: params.enableHemming,
+    enableHandles: params.enableHandles,
+    enablePerforation: params.enablePerforation
 };
 // Materials
 const materials = {
