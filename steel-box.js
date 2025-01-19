@@ -62,15 +62,21 @@ const config = {
 // Materials
 const materials = {
     steel: new THREE.MeshStandardMaterial({
-        color: 0xCCCCCC,
-        metalness: 0.8,
-        roughness: 0.3,
+        color: 0xFFFFFF,      // Pure white base
+        metalness: 0.9,       // Very metallic
+        roughness: 0.6,       // Moderately polished
+        reflectivity: 0.8,    // High reflectivity
+        clearcoat: 0.1,       // Slight clearcoat for extra shine
+        clearcoatRoughness: 0.2,
         side: THREE.DoubleSide
     }),
     darkSteel: new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        metalness: 0.9,
-        roughness: 0.2,
+        color: 0xEEEEEE,
+        metalness: 0.85,
+        roughness: 0.35,
+        reflectivity: 0.7,
+        clearcoat: 0.1,
+        clearcoatRoughness: 0.2,
         side: THREE.DoubleSide
     }),
     rubber: new THREE.MeshStandardMaterial({
@@ -312,6 +318,21 @@ function addSteppedEdges(box) {
     box.add(rightEdge);
 }
 
+function addShadowCatcher() {
+    const shadowGeo = new THREE.PlaneGeometry(800, 800);
+    const shadowMat = new THREE.ShadowMaterial({
+        opacity: 0.08  // Very subtle shadow
+    });
+    const shadowCatcher = new THREE.Mesh(shadowGeo, shadowMat);
+    
+    // Position slightly towards back
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.position.y = -dims.thickness;
+    shadowCatcher.position.z = -100;  // Offset towards back
+    shadowCatcher.receiveShadow = true;
+    
+    scene.add(shadowCatcher);
+}
 
 
 // Modify createBox function to use config
@@ -385,6 +406,8 @@ const controls = new OrbitControls(camera, renderer.domElement);
 const box = createBox();
 scene.add(box);
 addHandles(scene, box);
+enableShadows(box);
+addShadowCatcher();
 
 
 // Add handles
@@ -406,30 +429,44 @@ function addHandles(scene, box) {
 
 // Add lights
 function addLights() {
-   // Bright ambient light
-   const ambient = new THREE.AmbientLight(0xffffff, 1.2);
-   scene.add(ambient);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    scene.add(ambient);
+
+    // Main light casting shadow
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    mainLight.position.set(200, 200, 400); // Position for back shadow
+    mainLight.castShadow = true;
+    
+    // Softer shadow settings
    
-   // Brighter main directional light
-   const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
-   mainLight.position.set(500, 500, 500);
-   mainLight.castShadow = true;
-   scene.add(mainLight);
-   
-   // Additional bright point lights
-   const lights = [
-       { position: [-200, 200, 200], intensity: 1.0 },
-       { position: [200, 200, -200], intensity: 1.0 },
-       { position: [0, 800, 0], intensity: 0.8 },
-       { position: [0, -500, 0], intensity: 0.8 }
-   ];
-   
-   lights.forEach(({ position, intensity }) => {
-       const light = new THREE.PointLight(0xffffff, intensity);
-       light.position.set(...position);
-       scene.add(light);
-   });
+    scene.add(mainLight);
+
+    // Fill lights remain same
+    const fillLights = [
+        { pos: [-150, 150, 150], intensity: 1.2 },
+        { pos: [150, -150, -150], intensity: 1.0 },
+        { pos: [0, 200, 0], intensity: 1.5 }
+    ];
+
+    fillLights.forEach(({pos, intensity}) => {
+        const light = new THREE.DirectionalLight(0xffffff, intensity);
+        light.position.set(...pos);
+        scene.add(light);
+    });
 }
+
+function enableShadows(object) {
+    if(object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+    }
+    if(object.children) {
+        object.children.forEach(child => enableShadows(child));
+    }
+}
+
+// Apply to box after creation
+enableShadows(box);
 
 addLights();
 
