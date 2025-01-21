@@ -421,7 +421,7 @@ function addHandles(scene, box) {
    scene.add(leftHandle);
 
    const rightHandle = createHandle();
-   rightHandle.position.set(dims.length/2, dims.height, 0);
+   rightHandle.position.set(dims.length/2, dims.height/2, 0);
    rightHandle.rotation.y = -Math.PI/2;
    rightHandle.rotation.x = Math.PI;
    scene.add(rightHandle);
