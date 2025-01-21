@@ -44,9 +44,9 @@ const dims = {
     basePlateThickness: 3,
     basePlateDepth: -10,
     handleWidth: 100,
-    handleHeight: 75,
-    handleTubeRadius: 4,
-    handleDepth: -20,
+    handleHeight: 40,
+    handleTubeRadius: 6,
+    handleDepth: -10,
     rubberThickness: 1,
     // Step dimensions
     stepHeight: 8,
