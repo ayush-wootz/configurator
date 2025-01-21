@@ -39,15 +39,15 @@ const dims = {
     height: params.height,
     thickness: 2,
     // Handle dimensions remain constant
-    basePlateWidth: 140,
-    basePlateHeight: 100,
+    basePlateWidth: 130,
+    basePlateHeight: 95,
     basePlateThickness: 3,
     basePlateDepth: -10,
     handleWidth: 100,
-    handleHeight: 40,
-    handleTubeRadius: 6,
-    handleDepth: -10,
-    rubberThickness: 2,
+    handleHeight: 75,
+    handleTubeRadius: 4,
+    handleDepth: -20,
+    rubberThickness: 1,
     // Step dimensions
     stepHeight: 8,
     stepInset: 8
@@ -102,7 +102,7 @@ function createPerforatedWall(width, height, isHandleSide = false) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Parameters for holes with 10% reduced density
-    const holeRadius = 3 * scale;  // 6mm diameter
+    const holeRadius = 1.5 * scale;  // 6mm diameter
     const holePitch = 12 * scale;  // 8.8mm pitch (10% increase from 8mm)
     const margin = holePitch;
     
