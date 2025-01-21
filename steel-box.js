@@ -415,13 +415,13 @@ function addHandles(scene, box) {
    if (!config.enableHandles) return;
 
    const leftHandle = createHandle();
-   leftHandle.position.set(-dims.length/2, dims.height/2, 0);
+   leftHandle.position.set(-dims.length/2, dims.height - 10 - dims.basePlateHeight/2, 0);
    leftHandle.rotation.y = Math.PI/2;
    leftHandle.rotation.x = Math.PI;
    scene.add(leftHandle);
 
    const rightHandle = createHandle();
-   rightHandle.position.set(dims.length/2, dims.height/2, 0);
+   rightHandle.position.set(dims.length/2, dims.height - 10 - dims.basePlateHeight/2, 0);
    rightHandle.rotation.y = -Math.PI/2;
    rightHandle.rotation.x = Math.PI;
    scene.add(rightHandle);
