@@ -455,6 +455,8 @@ function addLights() {
     });
 }
 
+
+// Make all meshes cast and receive shadows
 function enableShadows(object) {
     if(object instanceof THREE.Mesh) {
         object.castShadow = true;
@@ -464,7 +466,6 @@ function enableShadows(object) {
         object.children.forEach(child => enableShadows(child));
     }
 }
-
 // Apply to box after creation
 enableShadows(box);
 
