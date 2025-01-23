@@ -25,9 +25,12 @@ function getURLParameters() {
         length: parseInt(urlParams.get('len')) || 380,  // Default if not specified
         width: parseInt(urlParams.get('wid')) || 207,
         height: parseInt(urlParams.get('hei')) || 200,
-        enableHandles: urlParams.get('handle') === 'true',
+        enableHandles: urlParams.get('handle') === 'true' || true,
         enableHemming: urlParams.get('hem') === 'true',
-        enablePerforation: urlParams.get('perf') === 'true'
+        enablePerforation: urlParams.get('perf') === 'true',
+        enableWheels: urlParams.get('wheel') === 'true' || true// Add this line
+
+
     };
 }
 const params = getURLParameters();
@@ -57,7 +60,10 @@ const dims = {
 const config = {
     enableHemming: params.enableHemming,
     enableHandles: params.enableHandles,
-    enablePerforation: params.enablePerforation
+    enablePerforation: params.enablePerforation,
+    enableWheels: params.enableWheels  // Add this line
+
+
 };
 // Materials
 const materials = {
@@ -244,6 +250,146 @@ function createHandle() {
 
 // Add stepped edges to box
 
+// Add these to your dims object at the top
+dims.wheelDiameter = 42;
+dims.wheelThickness = 10;
+dims.wheelOffset = 30;
+
+// Add these new materials
+materials.fibreglass = new THREE.MeshStandardMaterial({
+    color: 0xE0E0E0,
+    metalness: 0.2,
+    roughness: 0.8,
+    side: THREE.DoubleSide
+});
+
+materials.wheelRubber = new THREE.MeshStandardMaterial({
+    color: 0x101010,
+    metalness: 0.0,
+    roughness: 0.9,
+    side: THREE.DoubleSide
+});
+
+
+// Add these new materials
+materials.fibreglass = new THREE.MeshStandardMaterial({
+    color: 0xE0E0E0,
+    metalness: 0.2,
+    roughness: 0.8,
+    side: THREE.DoubleSide
+});
+
+materials.wheelRubber = new THREE.MeshStandardMaterial({
+    color: 0x101010,
+    metalness: 0.0,
+    roughness: 0.9,
+    side: THREE.DoubleSide
+});
+
+
+
+
+
+function createWheelSpokes() {
+    const spokes = new THREE.Group();
+    const spokeCount = 6;
+    const spokeWidth = 4;
+    const radius = dims.wheelDiameter/2 - 5;
+    
+    for(let i = 0; i < spokeCount; i++) {
+        const angle = (i / spokeCount) * Math.PI * 2;
+        const spoke = new THREE.Mesh(
+            new THREE.BoxGeometry(radius, 2, spokeWidth),
+            materials.fibreglass
+        );
+        spoke.position.x = radius/2;
+        spoke.rotation.y = angle;
+        spokes.add(spoke);
+    }
+    return spokes;
+}
+
+function createCastorWheel() {
+    const wheel = new THREE.Group();
+
+    // Main wheel core
+    const wheelCore = new THREE.CylinderGeometry(
+        dims.wheelDiameter/2 - 5,
+        dims.wheelDiameter/2 - 5,
+        dims.wheelThickness,
+        24
+    );
+    const wheelCoreMesh = new THREE.Mesh(wheelCore, materials.fibreglass);
+    wheelCoreMesh.rotation.z = Math.PI/2;
+    
+
+    // Rubber tire (using cylinder instead of torus)
+    const tire = new THREE.Mesh(
+        new THREE.CylinderGeometry(dims.wheelDiameter/2, dims.wheelDiameter/2, dims.wheelThickness, 24),
+        materials.wheelRubber
+    );
+    tire.rotation.z = Math.PI/2;
+
+    // Spokes
+    const spokes = createWheelSpokes();
+
+    // Center hub
+    const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(8, 8, dims.wheelThickness + 2, 16),
+        materials.steel
+    );
+    hub.rotation.z = Math.PI/2;
+
+    // Wheel assembly
+    const wheelAssembly = new THREE.Group();
+    wheelAssembly.add(wheelCoreMesh, tire, spokes, hub);
+
+    // Mounting bracket
+    const bracket = new THREE.Group();
+
+    // Fork for wheel
+    const forkGeometry = new THREE.BoxGeometry(dims.wheelThickness + 5, 40, 5);
+    const forkLeft = new THREE.Mesh(forkGeometry, materials.steel);
+    const forkRight = new THREE.Mesh(forkGeometry, materials.steel);
+    
+    forkLeft.position.set(-(dims.wheelThickness/2 + 2.5), 20, 0);
+    forkRight.position.set(dims.wheelThickness/2 + 2.5, 20, 0);
+
+    // Top mounting plate
+    const plateGeometry = new THREE.BoxGeometry(40, 5, 40);
+    const plate = new THREE.Mesh(plateGeometry, materials.steel);
+    plate.position.y = 40;
+
+    bracket.add(forkLeft, forkRight, plate);
+    wheel.add(wheelAssembly, bracket);
+
+    return wheel;
+}
+
+
+
+function addCastorWheels(box) {
+    const wheelPositions = [
+        {x: dims.length/2 - dims.wheelOffset, z: dims.width/2 - dims.wheelOffset},
+        {x: -dims.length/2 + dims.wheelOffset, z: dims.width/2 - dims.wheelOffset},
+        {x: dims.length/2 - dims.wheelOffset, z: -dims.width/2 + dims.wheelOffset},
+        {x: -dims.length/2 + dims.wheelOffset, z: -dims.width/2 + dims.wheelOffset}
+    ];
+
+    wheelPositions.forEach((pos) => {
+        const wheel = createCastorWheel();
+        wheel.position.set(pos.x, -dims.wheelDiameter/2, pos.z);
+        box.add(wheel);
+    });
+}
+
+// Add this line after your box creation
+
+// Add this line after your box creation
+
+
+// Add wheels
+
 
 function createSteppedEdge(length) {
    const shape = new THREE.Shape();
@@ -410,6 +556,7 @@ enableShadows(box);
 addShadowCatcher();
 
 
+
 // Add handles
 function addHandles(scene, box) {
    if (!config.enableHandles) return;
@@ -470,6 +617,9 @@ function enableShadows(object) {
 enableShadows(box);
 
 addLights();
+if (config.enableWheels) {
+    addCastorWheels(box);
+}
 
 // Animation loop
 const animate = () => {
