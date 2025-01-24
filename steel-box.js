@@ -251,7 +251,7 @@ function createHandle() {
 // Add stepped edges to box
 
 // Add these to your dims object at the top
-dims.wheelDiameter = 42;
+dims.wheelDiameter = 20;
 dims.wheelThickness = 10;
 dims.wheelOffset = 30;
 
