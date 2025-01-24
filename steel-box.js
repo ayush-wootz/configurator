@@ -25,10 +25,10 @@ function getURLParameters() {
         length: parseInt(urlParams.get('len')) || 380,  // Default if not specified
         width: parseInt(urlParams.get('wid')) || 207,
         height: parseInt(urlParams.get('hei')) || 200,
-        enableHandles: urlParams.get('handle') === 'true' ,
+        enableHandles: urlParams.get('handle') === 'true' || true,
         enableHemming: urlParams.get('hem') === 'true',
         enablePerforation: urlParams.get('perf') === 'true',
-        enableWheels: urlParams.get('wheel') === 'true'// Add this line
+        enableWheels: urlParams.get('wheel') === 'true' || true// Add this line
 
 
     };
@@ -42,19 +42,21 @@ const dims = {
     height: params.height,
     thickness: 2,
     // Handle dimensions remain constant
-    basePlateWidth: 130,
-    basePlateHeight: 95,
-    basePlateThickness: 3,
-    basePlateDepth: -10,
-    handleWidth: 100,
-    handleHeight: 40,
-    handleTubeRadius: 6,
-    handleDepth: -10,
-    rubberThickness: 1,
+    
     // Step dimensions
     stepHeight: 8,
     stepInset: 8
 };
+
+dims.basePlateWidth = Math.min(dims.width * 0.6, 130);  // 60% of width, max 130mm
+dims.basePlateHeight = Math.min(dims.width * 0.45, 95);  // 45% of width, max 95mm
+dims.basePlateThickness = Math.max(dims.width * 0.015, 3);  // 1.5% of width, min 3mm
+dims.basePlateDepth = -Math.max(dims.width * 0.05, 10);  // 5% of width, min 10mm
+dims.handleWidth = dims.basePlateWidth * 0.75;  // 75% of baseplate width
+dims.handleHeight = dims.basePlateHeight * 0.4;  // 40% of baseplate height
+dims.handleTubeRadius = Math.max(dims.width * 0.015, 3);  // 3% of width, min 6mm
+dims.handleDepth = dims.basePlateDepth;  // Same as baseplate depth
+dims.rubberThickness = Math.max(dims.width * 0.005, 1);
 
 // Configuration object
 const config = {
@@ -251,7 +253,7 @@ function createHandle() {
 // Add stepped edges to box
 
 // Add these to your dims object at the top
-dims.wheelDiameter = 20;
+dims.wheelDiameter = 42;
 dims.wheelThickness = 10;
 dims.wheelOffset = 30;
 
@@ -380,6 +382,7 @@ function addCastorWheels(box) {
         const wheel = createCastorWheel();
         wheel.position.set(pos.x, -dims.wheelDiameter/2, pos.z);
         box.add(wheel);
+        wheel.rotation.y = Math.PI/4;
     });
 }
 
