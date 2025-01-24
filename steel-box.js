@@ -25,10 +25,10 @@ function getURLParameters() {
         length: parseInt(urlParams.get('len')) || 380,  // Default if not specified
         width: parseInt(urlParams.get('wid')) || 207,
         height: parseInt(urlParams.get('hei')) || 200,
-        enableHandles: urlParams.get('handle') === 'true' || true,
+        enableHandles: urlParams.get('handle') === 'true',
         enableHemming: urlParams.get('hem') === 'true',
         enablePerforation: urlParams.get('perf') === 'true',
-        enableWheels: urlParams.get('wheel') === 'true' || true// Add this line
+        enableWheels: urlParams.get('wheel') === 'true' // Add this line
 
 
     };
