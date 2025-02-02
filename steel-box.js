@@ -32,7 +32,7 @@ function getURLParameters() {
     return { 
         length: parseInt(urlParams.get('len')) || 380, 
         width: parseInt(urlParams.get('wid')) || 207, 
-        height: parseInt(urlParams.get('hei')) || 800, 
+        height: parseInt(urlParams.get('hei')) || 200, 
         enableHandles: urlParams.get('handle') === 'true' || true, 
         // enableHemming: urlParams.get('hem') === 'true' || true , 
         enablePerforation: urlParams.get('perf') === 'true' || false, 
@@ -342,7 +342,7 @@ function createRibCornerConnector() {
  
 // Modified addRibs function to include corner connectors 
 function addRibs(box) { 
-    if (!config.enableRibs) return; 
+     
     const ribPositions = calculateRibPositions(dims.height); 
      
     const wallConfigs = [ 
@@ -907,7 +907,8 @@ function createBox() {
        box.add(wall); 
    }); 
   // Add the ribs after creating the basic box structure 
-  addRibs(box); 
+ if (config.enableRibs) {  
+  {addRibs(box); }
   addSteppedEdges(box); 
   addTopRubberLining(box); 
   // addSteppedRubberLining(box); 
