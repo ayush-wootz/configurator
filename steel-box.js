@@ -13,10 +13,8 @@ function initScene() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xE4E4E4);
     
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
-    // Adjusted camera position for better default view
-    camera.position.set(dims.length, dims.height, dims.length);
-    camera.lookAt(0, 0, 0);  // Make camera look at center
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(500, 500, 500);
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -28,19 +26,18 @@ function initScene() {
     return { scene, camera, renderer };
 }
 
-
 function getURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
     return {
         length: parseInt(urlParams.get('len')) || 380,
         width: parseInt(urlParams.get('wid')) || 207,
         height: parseInt(urlParams.get('hei')) || 200,
-        enableHandles: urlParams.get('handle') === 'true' || true,
-        enablePerforation: urlParams.get('perf') === 'true' || true,
-        enableWheels: urlParams.get('wheel') === 'true' || true,
+        enableHandles: urlParams.get('handle') === 'true' || false,
+        enablePerforation: urlParams.get('perf') === 'true' || false,
+        enableWheels: urlParams.get('wheel') === 'true' || false,
         enableRibs: urlParams.get('ribs') === 'true' || false,
-        enableStraightTop: urlParams.get('straight') === 'true' || true,
-        enableRubberLining: urlParams.get('rubber') === 'true' || true,
+        enableStraightTop: urlParams.get('straight') === 'true' || false,
+        enableRubberLining: urlParams.get('rubber') === 'true' || false,
         rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
         rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
         rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5,
@@ -671,16 +668,6 @@ function initBox() {
     const { scene, camera, renderer } = initScene();
     const controls = new OrbitControls(camera, renderer.domElement);
 
-
-    controls.target.set(0, 0, 0);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
-    controls.minDistance = 100;
-    controls.maxDistance = 1500;
-    controls.maxPolarAngle = Math.PI / 2;
-    controls.update();
-    
     // Set up lighting
     addLights(scene);
 
