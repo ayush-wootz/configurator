@@ -13,8 +13,10 @@ function initScene() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xE4E4E4);
     
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(500, 500, 500);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+    // Adjusted camera position for better default view
+    camera.position.set(dims.length, dims.height, dims.length);
+    camera.lookAt(0, 0, 0);  // Make camera look at center
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -25,6 +27,7 @@ function initScene() {
     
     return { scene, camera, renderer };
 }
+
 
 function getURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -668,6 +671,16 @@ function initBox() {
     const { scene, camera, renderer } = initScene();
     const controls = new OrbitControls(camera, renderer.domElement);
 
+
+    controls.target.set(0, 0, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = false;
+    controls.minDistance = 100;
+    controls.maxDistance = 1500;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.update();
+    
     // Set up lighting
     addLights(scene);
 
