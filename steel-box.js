@@ -57,8 +57,8 @@ const config = {
 };
 
 const step_dims = {
-    stepHeight: 8,
-    stepInset: 8
+    stepHeight: 6,
+    stepInset: 6
 };
 
 // Setting up the Box dimensions
