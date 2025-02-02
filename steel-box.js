@@ -1,641 +1,1015 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-// Initialize scene
-function initScene() {
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xE4E4E4);
+import * as THREE from 'three'; 
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; 
+ 
+// Initialize scene 
+function initScene() { 
+    const scene = new THREE.Scene(); 
+    scene.background = new THREE.Color(0xE4E4E4); 
+     
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000); 
+    camera.position.set(500, 500, 500); 
+     
+    const renderer = new THREE.WebGLRenderer({ antialias: true }); 
+    renderer.setSize(window.innerWidth, window.innerHeight); 
+    renderer.shadowMap.enabled = true; 
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+     
+    document.body.appendChild(renderer.domElement); 
+     
+    return { scene, camera, renderer }; 
+} 
+ 
+// Define rubber color options 
+const RUBBER_COLORS = { 
+    black: '0x111111', 
+    blue: '0x0047AB',  // Cobalt Blue 
+    steel: '0xC0C0C0'  // Steel Grey 
+}; 
+ 
+ 
+function getURLParameters() { 
+    const urlParams = new URLSearchParams(window.location.search); 
+    return { 
+        length: parseInt(urlParams.get('len')) || 380, 
+        width: parseInt(urlParams.get('wid')) || 207, 
+        height: parseInt(urlParams.get('hei')) || 800, 
+        enableHandles: urlParams.get('handle') === 'true' || true, 
+        // enableHemming: urlParams.get('hem') === 'true' || true , 
+        enablePerforation: urlParams.get('perf') === 'true' || false, 
+        enableWheels: urlParams.get('wheel') === 'true' || false,// Add this line 
+        enableRibs: urlParams.get('ribs') === 'true' || true, 
+        enableStraightTop: urlParams.get('straight') === 'true' || false,// Add this line 
+        enableRubberLining: urlParams.get('rubber') === 'true' || true, 
+        rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'], 
+        rubberThickness: parseInt(urlParams.get('rubberThick')) || 2, 
+        rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5, 
+        rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0 
+    }; 
+} 
+const params = getURLParameters(); 
+ 
+// Configuration object 
+const config = { 
+    enableHemming: params.enableHemming, 
+    enableHandles: params.enableHandles, 
+    enablePerforation: params.enablePerforation, 
+    enableWheels: params.enableWheels,  // Add this line 
+    enableRibs: params.enableRibs,  // Add this line 
+    enableStraightTop: params.enableStraightTop 
+}; 
+ 
+const step_dims = { 
+    stepHeight: 8, 
+    stepInset: 8 
+} 
+// Setting up the Box dimensions 
+const dims = { 
+    length: params.length, 
+    width: params.width, 
+    height: params.height + (config.enableStraightTop ? step_dims.stepHeight*2 + step_dims.stepInset*2 : 0), 
+    thickness: 2, 
+    // // // Stepped Profile - Step dimensions 
+    // stepHeight: 8, 
+    // stepInset: 8 
+}; 
+ 
+dims.basePlateWidth = Math.min(dims.width * 0.6, 130);  // 60% of width, max 130mm 
+dims.basePlateHeight = Math.min(dims.width * 0.45, 95);  // 45% of width, max 95mm 
+dims.basePlateThickness = Math.max(dims.width * 0.015, 3);  // 1.5% of width, min 3mm 
+dims.basePlateDepth = -Math.max(dims.width * 0.05, 10);  // 5% of width, min 10mm 
+dims.handleWidth = dims.basePlateWidth * 0.75;  // 75% of baseplate width 
+dims.handleHeight = dims.basePlateHeight * 0.4;  // 40% of baseplate height 
+dims.handleTubeRadius = Math.max(dims.width * 0.015, 3);  // 3% of width, min 6mm 
+dims.handleDepth = dims.basePlateDepth;  // Same as baseplate depth 
+dims.rubberThickness = Math.max(dims.width * 0.005, 1); 
+ 
+dims.basePlateYposition = -dims.height/2 + (dims.height * 0.3); 
+ 
+// Add these hemming parameters to your dims object 
+ 
+// Add these to your existing dims object right after existing dimensions 
+dims.ribDepth = 1;  // Rib protrusion depth 
+dims.ribWidth = 12;  // Rib width 
+dims.ribInterval = 200;  // Base interval for rib calculation 
+ 
+// Add to dims object for rubber lining 
+dims.rubberLining = { 
+    thickness: params.rubberThickness, 
+    height: params.rubberHeight, 
+    overhang: params.rubberOverhang, 
+    // Calculate vertical offset relative to box dimensions 
+    verticalOffset: config.enableStraightTop ? 0 : step_dims.stepHeight*2 + step_dims.stepInset*2  // 32mm fixed offset from top  
+}; 
+ 
+// Materials 
+const materials = { 
+    steel: new THREE.MeshStandardMaterial({ 
+        color: 0xFFFFFF,      // Pure white base 
+        metalness: 0.9,       // Very metallic 
+        roughness: 0.6,       // Moderately polished 
+        reflectivity: 0.8,    // High reflectivity 
+        clearcoat: 0.1,       // Slight clearcoat for extra shine 
+        clearcoatRoughness: 0.2, 
+        side: THREE.DoubleSide 
+    }), 
+    darkSteel: new THREE.MeshStandardMaterial({ 
+        color: 0xEEEEEE, 
+        metalness: 0.85, 
+        roughness: 0.35, 
+        reflectivity: 0.7, 
+        clearcoat: 0.1, 
+        clearcoatRoughness: 0.2, 
+        side: THREE.DoubleSide 
+    }), 
+    rubber: new THREE.MeshStandardMaterial({ 
+        color: 0x222222, 
+        metalness: 0.0, 
+        roughness: 0.9, 
+        side: THREE.DoubleSide 
+    }) 
+}; 
+ 
+// Hemming at top - Vinay 
+ 
+ 
+// Rubber Lining Implementation 
+// Add rubber lining dimensions to dims object 
+ 
+//Create dynamic rubber material with configurable color 
+function createRubberMaterial(color) { 
+    return new THREE.MeshStandardMaterial({ 
+        color: parseInt(color), 
+        metalness: 0.0, 
+        roughness: 0.95, 
+        side: THREE.DoubleSide 
+    }); 
+} 
+ 
+//  
+function createTopRubberLining(width) { 
+    const shape = new THREE.Shape(); 
+    const t = dims.rubberLining.thickness; 
+    const h = dims.rubberLining.height; 
+    const o = dims.rubberLining.overhang; 
+     
+    // Create profile ensuring symmetry 
+    shape.moveTo(-o, -t/2); 
+    shape.lineTo(-o, h - t/2);       
+    shape.lineTo(width + o, h - t/2); 
+    shape.lineTo(width + o, -t/2); 
+    shape.lineTo(width, -t/2); 
+    shape.lineTo(0, -t/2); 
+    shape.lineTo(-o, -t/2); 
+ 
+    const extrudeSettings = { 
+        steps: 1, 
+        depth: t, 
+        bevelEnabled: false 
+    }; 
+     
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings); 
+    const rubberMaterial = new THREE.MeshStandardMaterial({ 
+        color: parseInt(params.rubberColor), 
+        metalness: 0.0, 
+        roughness: 0.95, 
+        side: THREE.DoubleSide 
+    }); 
+     
+    return new THREE.Mesh(geometry, rubberMaterial); 
+} 
+ 
+function addTopRubberLining(box) { 
+    // Calculate dynamic positions based on box dimensions 
+    const vertOffset = dims.height + dims.rubberLining.verticalOffset; 
+     
+    // Define lining positions relative to box dimensions 
+    const liningConfigs = [ 
+        // Front wall 
+        { 
+            width: dims.length, 
+            position: [ 
+                -dims.length/2, 
+                vertOffset, 
+                dims.width/2 - dims.thickness/2 
+            ], 
+            rotation: [0, 0, 0] 
+        }, 
+        // Back wall 
+        { 
+            width: dims.length, 
+            position: [ 
+                -dims.length/2, 
+                vertOffset, 
+                -dims.width/2 - dims.thickness/2 
+            ], 
+            rotation: [0, 0, 0] 
+        }, 
+        // Left wall 
+        { 
+            width: dims.width, 
+            position: [ 
+                -dims.length/2 - dims.thickness/66, 
+                vertOffset, 
+                dims.width/2 
+            ], 
+            rotation: [0, Math.PI/2, 0] 
+        }, 
+        // Right wall 
+        { 
+            width: dims.width, 
+            position: [ 
+                dims.length/2 - dims.thickness/1.03, 
+                vertOffset, 
+                dims.width/2 
+            ], 
+            rotation: [0, Math.PI/2, 0] 
+        } 
+    ]; 
+     
+    liningConfigs.forEach(config => { 
+        const lining = createTopRubberLining(config.width); 
+        lining.position.set(...config.position); 
+        lining.rotation.set(...config.rotation); 
+        box.add(lining); 
+    }); 
+} 
+ 
+ 
+ 
+//// Ribs Implementation 
+// Function to calculate number of ribs and their positions 
+function calculateRibPositions(totalHeight) { 
+    const numRibs = Math.floor(totalHeight / dims.ribInterval); 
+    if (numRibs === 0) return []; 
+     
+    const positions = []; 
+    const interval = totalHeight / (numRibs + 1); 
+     
+    for (let i = 1; i <= numRibs; i++) { 
+        positions.push(interval * i); 
+    } 
+     
+    return positions; 
+} 
+// Helper function to check if height is in base plate area 
+function isInBasePlateArea(height) { 
+    const handleCenterY = dims.height / 2 - dims.basePlateYposition; 
+    // Add some margin to the base plate height for the indented area 
+    const totalBasePlateArea = dims.basePlateHeight; // 20% larger than base plate 
+    return Math.abs(height - handleCenterY) < (totalBasePlateArea / 2); 
+} 
+ 
+// Modified function to create rib segment with endpoint adjustments 
+function createRibSegment(width, startPos = 0, segmentWidth = null) { 
+    const points = []; 
+    const segments = 100; 
+    const ribDepth = dims.ribDepth/3; 
+    const ribWidth = dims.ribWidth/2; 
+     
+    // Create points for the curved profile 
+    for (let i = 0; i <= segments; i++) { 
+        const t = i / segments; 
+        const angle = t * Math.PI; 
+        let x = Math.sin(angle) * ribDepth; 
+        let y = (t - 0.5) * ribWidth; 
+         
+        // Modify end points to better match with corners 
+        if (i === 0 || i === segments) { 
+            x *= 1; // Reduce depth at endpoints by 5% 
+        } 
+         
+        points.push(new THREE.Vector2(x, y)); 
+    } 
+     
+    const shape = new THREE.Shape(); 
+    shape.moveTo(points[0].x, points[0].y); 
+     
+    // Create smoother curve through points 
+    for (let i = 0; i < points.length; i++) { 
+        shape.lineTo(points[i].x, points[i].y); 
+    } 
+     
+    const extrudeSettings = { 
+        steps: 1, 
+        depth: segmentWidth || width, 
+        bevelEnabled: true, 
+        bevelThickness: 0.3, 
+        bevelSize: 0.3, 
+        bevelSegments: 3 
+    }; 
+     
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings); 
+    const mesh = new THREE.Mesh(geometry, materials.steel); 
+     
+    if (startPos !== 0) { 
+        mesh.position.x = startPos; 
+    } 
+     
+    return mesh; 
+} 
+ 
+// Function to create corner connector 
+function createRibCornerConnector() { 
+    const cornerRadius = dims.ribWidth/2; 
+    const ribDepth = dims.ribDepth/3; 
+     
+    // Create quarter-circle corner shape 
+    const shape = new THREE.Shape(); 
+    const segments = 20; 
+     
+    shape.moveTo(cornerRadius, 0); 
+     
+    // Add quarter circle points 
+    for (let i = 0; i <= segments; i++) { 
+        const theta = (i / segments) * Math.PI / 2; 
+        const x = Math.cos(theta) * cornerRadius; 
+        const y = Math.sin(theta) * cornerRadius; 
+        shape.lineTo(x, y); 
+    } 
+     
+    const extrudeSettings = { 
+        steps: 1, 
+        depth: ribDepth, 
+        bevelEnabled: true, 
+        bevelThickness: 0.3, 
+        bevelSize: 0.3, 
+        bevelSegments: 3 
+    }; 
+     
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings); 
+    return new THREE.Mesh(geometry, materials.steel); 
+} 
+ 
+// Modified addRibs function to include corner connectors 
+function addRibs(box) { 
+    if (!config.enableRibs) return; 
+    const ribPositions = calculateRibPositions(dims.height); 
+     
+    const wallConfigs = [ 
+        // Front wall 
+        { 
+            width: dims.length+0.5, 
+            position: [dims.length/2, 0, dims.width/2 + dims.thickness/2], 
+            rotation: [0, -Math.PI/2, 0], 
+            hasBasePlate: false, 
+            shiftAxis: 'z' 
+        }, 
+        // Back wall 
+        { 
+            width: dims.length+0.5, 
+            position: [-dims.length/1.99, 0, -dims.width/2 - dims.thickness/2], 
+            rotation: [0, Math.PI/2, 0], 
+            hasBasePlate: false, 
+            shiftAxis: 'z' 
+        }, 
+        // Left wall (with base plate) 
+        { 
+            width: dims.width+0.5, 
+            position: [-dims.length/2 - dims.thickness/2, dims.length/2, dims.width/1.98], 
+            rotation: [0, -Math.PI, 0], 
+            hasBasePlate: true, 
+            shiftAxis: 'x' 
+        }, 
+        // Right wall (with base plate) 
+        { 
+            width: dims.width+0.5, 
+            position: [dims.length/2, -dims.width, dims.width/1.99], 
+            rotation: [0, Math.PI, -Math.PI], 
+            hasBasePlate: true, 
+            shiftAxis: 'x' 
+        } 
+    ]; 
+ 
+    // Define corner positions and rotations 
+    const cornerConfigs = [ 
+        { 
+            position: [dims.length/2, 0, dims.width/2], 
+            rotation: [0, 0, 0] 
+        }, 
+        { 
+            position: [-dims.length/2, 0, dims.width/2], 
+            rotation: [0, Math.PI/2, 0] 
+        }, 
+        { 
+            position: [-dims.length/2, 0, -dims.width/2], 
+            rotation: [0, Math.PI, 0] 
+        }, 
+        { 
+            position: [dims.length/2, 0, -dims.width/2], 
+            rotation: [0, -Math.PI/2, 0] 
+        } 
+    ]; 
+     
+    ribPositions.forEach(height => { 
+        // Add regular ribs 
+        wallConfigs.forEach(config => { 
+            if (config.hasBasePlate && isInBasePlateArea(height)) { 
+                const indentWidth = dims.basePlateWidth; 
+                const indentStartPos = (config.width - indentWidth) / 2; 
+                const remainingWidth = (config.width - indentWidth) / 2; 
+ 
+                if (remainingWidth > 0) { 
+                    // Create segment before the base plate 
+                    const beforeSegment = createRibSegment(config.width, 0, remainingWidth); 
+                    beforeSegment.position.set(...config.position); 
+                    beforeSegment.position.y = height; 
+                    beforeSegment.rotation.set(...config.rotation); 
+                    box.add(beforeSegment); 
+ 
+                    // Create segment after the base plate 
+                    const afterSegment = createRibSegment(config.width, 0, remainingWidth); 
+                    const afterPosition = [...config.position]; 
+                     
+                    const shiftAmount = indentStartPos + indentWidth; 
+                    if (config.shiftAxis === 'x') { 
+                        afterPosition[2] -= shiftAmount+1; 
+                    } else { 
+                        afterPosition[0] += shiftAmount; 
+                    } 
+                     
+                    afterSegment.position.set(...afterPosition); 
+                    afterSegment.position.y = height; 
+                    afterSegment.rotation.set(...config.rotation); 
+                    box.add(afterSegment); 
+                } 
+            } else { 
+                const rib = createRibSegment(config.width); 
+                rib.position.set(...config.position); 
+                rib.position.y = height; 
+                rib.rotation.set(...config.rotation); 
+                box.add(rib); 
+            } 
+        }); 
+ 
+        // Add corner connectors if not in base plate area 
+    //     if (!isInBasePlateArea(height)) { 
+    //         cornerConfigs.forEach(corner => { 
+    //             const cornerPiece = createRibCornerConnector(); 
+    //             const cornerPos = [...corner.position]; 
+    //             cornerPos[1] = height; // Set height for corner piece 
+    //             cornerPiece.position.set(...cornerPos); 
+    //             cornerPiece.rotation.set(...corner.rotation); 
+    //             box.add(cornerPiece); 
+    //         }); 
+    //     } 
+    }); 
+} 
+ 
+ 
+// Create perforated wall 
+function createPerforatedWall(width, height, isHandleSide = false) { 
+    const canvas = document.createElement('canvas'); 
+    const ctx = canvas.getContext('2d'); 
+     
+    // Make canvas size match wall dimensions (scaled up for better resolution) 
+    const scale = 10; 
+    canvas.width = width * scale; 
+    canvas.height = height * scale; 
+     
+    // Set background 
+    ctx.fillStyle = '#CCCCCC'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height); 
+     
+    // Parameters for holes with 10% reduced density 
+    const holeRadius = 1.5 * scale;  // 6mm diameter 
+    const holePitch = 12 * scale;  // 8.8mm pitch (10% increase from 8mm) 
+    const margin = holePitch; 
+     
+    // Handle base plate dimensions (scaled) 
+    const handlePlateWidth = dims.basePlateWidth * scale; 
+    const handlePlateHeight = dims.basePlateHeight * scale; 
+     
+    // Calculate number of holes 
+    const rows = Math.floor((height * scale - 2 * margin) / holePitch); 
+    const cols = Math.floor((width * scale - 2 * margin) / holePitch); 
+     
+    // Draw holes 
+    ctx.fillStyle = 'black'; 
+    for (let i = 0; i < rows; i++) { 
+        for (let j = 0; j < cols; j++) { 
+            const x = margin + j * holePitch + holePitch/2; 
+            const y = margin + i * holePitch + holePitch/2; 
+             
+            // Skip holes in handle mounting areas if this is a handle side 
+            if (isHandleSide) { 
+                const handleCenterY = canvas.height/2; 
+                const handleCenterX = canvas.width/2; 
+                const inHandleArea = Math.abs(x - handleCenterX) < handlePlateWidth/2 &&  
+                                   Math.abs(y - handleCenterY) < handlePlateHeight/2; 
+                 
+                if (inHandleArea) continue; 
+            } 
+             
+            ctx.beginPath(); 
+            ctx.arc(x, y, holeRadius, 0, Math.PI * 2); 
+            ctx.fill(); 
+        } 
+    } 
+     
+    // Create texture from canvas 
+    const texture = new THREE.CanvasTexture(canvas); 
+    texture.needsUpdate = true; 
+     
+    // Create material with the perforated texture 
+    const material = new THREE.MeshStandardMaterial({ 
+        map: texture, 
+        metalness: 0.8, 
+        roughness: 0.3, 
+        side: THREE.DoubleSide, 
+        alphaTest: 0.5, 
+        transparent: true 
+    }); 
+     
+    // Create wall mesh 
+    const geometry = new THREE.PlaneGeometry(width, height); 
+    const wall = new THREE.Mesh(geometry, material); 
+     
+    return wall; 
+} 
+ 
+ 
+ 
+ 
+// Create flat-mounted handle 
+function createHandle() { 
+    const handle = new THREE.Group(); 
+     
+    // Base plate 
+    const basePlate = new THREE.Mesh( 
+        new THREE.BoxGeometry( 
+            dims.basePlateWidth, 
+            dims.basePlateHeight, 
+            dims.basePlateThickness, 
+            dims.basePlateDepth 
+        ), 
+        materials.steel 
+    ); 
+    // Set baseplate position to 30% from top within the handle group 
+    basePlate.position.y =  -dims.height/2 + (dims.height * 0.3); // Offset from center of box height 
+    handle.add(basePlate); 
+     
+    // Handle assembly 
+    const handleGroup = new THREE.Group(); 
+     
+    // Vertical supports 
+    const verticalGeometry = new THREE.CylinderGeometry( 
+        dims.handleTubeRadius, 
+        dims.handleTubeRadius, 
+        dims.handleHeight, 
+        16 
+    ); 
+     
+    const leftVertical = new THREE.Mesh(verticalGeometry, materials.darkSteel); 
+    leftVertical.position.set(-dims.handleWidth/2, 0, dims.handleDepth); 
+    handleGroup.add(leftVertical); 
+     
+    const rightVertical = new THREE.Mesh(verticalGeometry, materials.darkSteel); 
+    rightVertical.position.set(dims.handleWidth/2, 0, dims.handleDepth); 
+    handleGroup.add(rightVertical); 
+     
+    // Horizontal grip 
+    const horizontalGeometry = new THREE.CylinderGeometry( 
+        dims.handleTubeRadius, 
+        dims.handleTubeRadius, 
+        dims.handleWidth - dims.handleTubeRadius * 2, 
+        16 
+    ); 
+    const horizontalHandle = new THREE.Mesh(horizontalGeometry, materials.darkSteel); 
+    horizontalHandle.rotation.z = Math.PI/2; 
+    horizontalHandle.position.set(0, dims.handleHeight/2, dims.handleDepth); 
+    handleGroup.add(horizontalHandle); 
+     
+    // Rubber grip 
+    const rubberGeometry = new THREE.CylinderGeometry( 
+        dims.handleTubeRadius + dims.rubberThickness, 
+        dims.handleTubeRadius + dims.rubberThickness, 
+        dims.handleWidth - dims.handleTubeRadius * 4, 
+        16 
+    ); 
+    const rubberGrip = new THREE.Mesh(rubberGeometry, materials.rubber); 
+    rubberGrip.rotation.z = Math.PI/2; 
+    rubberGrip.position.set(0, dims.handleHeight/2, dims.handleDepth); 
+    handleGroup.add(rubberGrip); 
+     
+    // Center handle group 
+    handleGroup.position.y = basePlate.position.y; 
+    handle.add(handleGroup); 
+     
+    // Mounting bolts 
+    const boltGeometry = new THREE.CylinderGeometry(4, 4, dims.basePlateThickness * 2, 6); 
+    const boltPositions = [ 
+        [-dims.basePlateWidth/3, basePlate.position.y + 30], 
+        [dims.basePlateWidth/3, basePlate.position.y + 30], 
+        [-dims.basePlateWidth/3, basePlate.position.y - 30], 
+        [dims.basePlateWidth/3, basePlate.position.y - 30] 
+    ]; 
+     
+    boltPositions.forEach(([x, y]) => { 
+        const bolt = new THREE.Mesh(boltGeometry, materials.darkSteel); 
+        bolt.position.set(x, y, 0); 
+        bolt.rotation.x = Math.PI/2; 
+        handle.add(bolt); 
+    }); 
+     
+    return handle; 
+} 
+ 
+// Add stepped edges to box 
+ 
+// Add these to your dims object at the top 
+dims.wheelDiameter = 42; 
+dims.wheelThickness = 10; 
+dims.wheelOffset = 30; 
+ 
+// Add these new materials 
+materials.fibreglass = new THREE.MeshStandardMaterial({ 
+    color: 0xE0E0E0, 
+    metalness: 0.2, 
+    roughness: 0.8, 
+    side: THREE.DoubleSide 
+}); 
+ 
+materials.wheelRubber = new THREE.MeshStandardMaterial({ 
+    color: 0x101010, 
+    metalness: 0.0, 
+    roughness: 0.9, 
+    side: THREE.DoubleSide 
+}); 
+ 
+ 
+// Add these new materials 
+materials.fibreglass = new THREE.MeshStandardMaterial({ 
+    color: 0xE0E0E0, 
+    metalness: 0.2, 
+    roughness: 0.8, 
+    side: THREE.DoubleSide 
+}); 
+ 
+materials.wheelRubber = new THREE.MeshStandardMaterial({ 
+    color: 0x101010, 
+    metalness: 0.0, 
+    roughness: 0.9, 
+    side: THREE.DoubleSide 
+}); 
+ 
+ 
+ 
+ 
+ 
+function createWheelSpokes() { 
+    const spokes = new THREE.Group(); 
+    const spokeCount = 6; 
+    const spokeWidth = 4; 
+    const radius = dims.wheelDiameter/2 - 5; 
+     
+    for(let i = 0; i < spokeCount; i++) { 
+        const angle = (i / spokeCount) * Math.PI * 2; 
+        const spoke = new THREE.Mesh( 
+            new THREE.BoxGeometry(radius, 2, spokeWidth), 
+            materials.fibreglass 
+        ); 
+        spoke.position.x = radius/2; 
+        spoke.rotation.y = angle; 
+        spokes.add(spoke); 
+    } 
+    return spokes; 
+} 
+ 
+function createCastorWheel() { 
+    const wheel = new THREE.Group(); 
+ 
+    // Main wheel core 
+    const wheelCore = new THREE.CylinderGeometry( 
+        dims.wheelDiameter/2 - 5, 
+        dims.wheelDiameter/2 - 5, 
+        dims.wheelThickness, 
+        24 
+    ); 
+    const wheelCoreMesh = new THREE.Mesh(wheelCore, materials.fibreglass); 
+    wheelCoreMesh.rotation.z = Math.PI/2; 
+     
+ 
+    // Rubber tire (using cylinder instead of torus) 
+    const tire = new THREE.Mesh( 
+        new THREE.CylinderGeometry(dims.wheelDiameter/2, dims.wheelDiameter/2, dims.wheelThickness, 24), 
+        materials.wheelRubber 
+    ); 
+    tire.rotation.z = Math.PI/2; 
+ 
+    // Spokes 
+    const spokes = createWheelSpokes(); 
+ 
+    // Center hub 
+    const hub = new THREE.Mesh( 
+        new THREE.CylinderGeometry(8, 8, dims.wheelThickness + 2, 16), 
+        materials.steel 
+    ); 
+    hub.rotation.z = Math.PI/2; 
+ 
+    // Wheel assembly 
+    const wheelAssembly = new THREE.Group(); 
+    wheelAssembly.add(wheelCoreMesh, tire, spokes, hub); 
+ 
+    // Mounting bracket 
+    const bracket = new THREE.Group(); 
+ 
+    // Fork for wheel 
+    const forkGeometry = new THREE.BoxGeometry(dims.wheelThickness + 5, 40, 5); 
+    const forkLeft = new THREE.Mesh(forkGeometry, materials.steel); 
+    const forkRight = new THREE.Mesh(forkGeometry, materials.steel); 
+     
+    forkLeft.position.set(-(dims.wheelThickness/2 + 2.5), 20, 0); 
+    forkRight.position.set(dims.wheelThickness/2 + 2.5, 20, 0); 
+ 
+    // Top mounting plate 
+    const plateGeometry = new THREE.BoxGeometry(40, 5, 40); 
+    const plate = new THREE.Mesh(plateGeometry, materials.steel); 
+    plate.position.y = 40; 
+ 
+    bracket.add(forkLeft, forkRight, plate); 
+    wheel.add(wheelAssembly, bracket); 
+ 
+    return wheel; 
+} 
+ 
+ 
+ 
+function addCastorWheels(box) { 
+    const wheelPositions = [ 
+        {x: dims.length/2 - dims.wheelOffset, z: dims.width/2 - dims.wheelOffset}, 
+        {x: -dims.length/2 + dims.wheelOffset, z: dims.width/2 - dims.wheelOffset}, 
+        {x: dims.length/2 - dims.wheelOffset, z: -dims.width/2 + dims.wheelOffset}, 
+        {x: -dims.length/2 + dims.wheelOffset, z: -dims.width/2 + dims.wheelOffset} 
+    ]; 
+ 
+    wheelPositions.forEach((pos) => { 
+        const wheel = createCastorWheel(); 
+        wheel.position.set(pos.x, -dims.wheelDiameter/2, pos.z); 
+        box.add(wheel); 
+        wheel.rotation.y = Math.PI/4; 
+    }); 
+} 
+ 
+// Add this line after your box creation 
+ 
+// Add this line after your box creation 
+ 
+ 
+// Add wheels 
+ 
+ 
+function createSteppedEdge(length) { 
+   const shape = new THREE.Shape(); 
+   const t = dims.thickness; 
+   const s = step_dims.stepInset; 
+   const h = step_dims.stepHeight; 
+   const bendR = 2.5; 
+   const hemLength = 15; 
+ 
+   // Main profile 
+   shape.moveTo(0, 0); 
+   shape.lineTo(0, t); 
+   shape.lineTo(s, s + t); 
+   shape.lineTo(s, s + h); 
+   shape.lineTo(0, s + h + s); 
+   shape.lineTo(0, s + h + s + h); 
+ 
+   // Add outward hem only if enabled 
+  //  if(config.enableHemming) { 
+  //      shape.lineTo(hemLength, s + h + s + h); 
+  //      shape.bezierCurveTo( 
+  //          hemLength + bendR, s + h + s + h, 
+  //          hemLength + bendR, s + h + s + h - bendR, 
+  //          hemLength, s + h + s + h - (2 * bendR) 
+  //      ); 
+  //      shape.lineTo(0, s + h + s + h - (2 * bendR)); 
+  //  } 
+ 
+   // Inner profile 
+   shape.lineTo(t, s + h + s + h - (config.enableHemming ? (2 * bendR) : 0)); 
+   shape.lineTo(t, s + h + s); 
+   shape.lineTo(s - t, s + h); 
+   shape.lineTo(s - t, s); 
+   shape.lineTo(t, t); 
+   shape.lineTo(0, 0); 
+ 
+   const extrudeSettings = { 
+       steps: 1, 
+       depth: length, 
+       bevelEnabled: false 
+   }; 
     
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(500, 500, 500);
-    
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    
-    document.body.appendChild(renderer.domElement);
-    
-    return { scene, camera, renderer };
-}
-
-function getURLParameters() {
-    const urlParams = new URLSearchParams(window.location.search);
-    return {
-        length: parseInt(urlParams.get('len')) || 380,  // Default if not specified
-        width: parseInt(urlParams.get('wid')) || 207,
-        height: parseInt(urlParams.get('hei')) || 200,
-        enableHandles: urlParams.get('handle') === 'true',
-        enableHemming: urlParams.get('hem') === 'true',
-        enablePerforation: urlParams.get('perf') === 'true',
-        enableWheels: urlParams.get('wheel') === 'true' // Add this line
-
-
-    };
-}
-const params = getURLParameters();
-
-// Updated dimensions
-const dims = {
-    length: params.length,
-    width: params.width,
-    height: params.height,
-    thickness: 2,
-    // Handle dimensions remain constant
-    
-    // Step dimensions
-    stepHeight: 8,
-    stepInset: 8
-};
-
-dims.basePlateWidth = Math.min(dims.width * 0.6, 130);  // 60% of width, max 130mm
-dims.basePlateHeight = Math.min(dims.width * 0.45, 95);  // 45% of width, max 95mm
-dims.basePlateThickness = Math.max(dims.width * 0.015, 3);  // 1.5% of width, min 3mm
-dims.basePlateDepth = -Math.max(dims.width * 0.05, 10);  // 5% of width, min 10mm
-dims.handleWidth = dims.basePlateWidth * 0.75;  // 75% of baseplate width
-dims.handleHeight = dims.basePlateHeight * 0.4;  // 40% of baseplate height
-dims.handleTubeRadius = Math.max(dims.width * 0.015, 3);  // 3% of width, min 6mm
-dims.handleDepth = dims.basePlateDepth;  // Same as baseplate depth
-dims.rubberThickness = Math.max(dims.width * 0.005, 1);
-
-// Configuration object
-const config = {
-    enableHemming: params.enableHemming,
-    enableHandles: params.enableHandles,
-    enablePerforation: params.enablePerforation,
-    enableWheels: params.enableWheels  // Add this line
-
-
-};
-// Materials
-const materials = {
-    steel: new THREE.MeshStandardMaterial({
-        color: 0xFFFFFF,      // Pure white base
-        metalness: 0.9,       // Very metallic
-        roughness: 0.6,       // Moderately polished
-        reflectivity: 0.8,    // High reflectivity
-        clearcoat: 0.1,       // Slight clearcoat for extra shine
-        clearcoatRoughness: 0.2,
-        side: THREE.DoubleSide
-    }),
-    darkSteel: new THREE.MeshStandardMaterial({
-        color: 0xEEEEEE,
-        metalness: 0.85,
-        roughness: 0.35,
-        reflectivity: 0.7,
-        clearcoat: 0.1,
-        clearcoatRoughness: 0.2,
-        side: THREE.DoubleSide
-    }),
-    rubber: new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        metalness: 0.0,
-        roughness: 0.9,
-        side: THREE.DoubleSide
-    })
-};
-
-// Create perforated wall
-function createPerforatedWall(width, height, isHandleSide = false) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Make canvas size match wall dimensions (scaled up for better resolution)
-    const scale = 10;
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-    
-    // Set background
-    ctx.fillStyle = '#CCCCCC';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Parameters for holes with 10% reduced density
-    const holeRadius = 1.5 * scale;  // 6mm diameter
-    const holePitch = 12 * scale;  // 8.8mm pitch (10% increase from 8mm)
-    const margin = holePitch;
-    
-    // Handle base plate dimensions (scaled)
-    const handlePlateWidth = dims.basePlateWidth * scale;
-    const handlePlateHeight = dims.basePlateHeight * scale;
-    
-    // Calculate number of holes
-    const rows = Math.floor((height * scale - 2 * margin) / holePitch);
-    const cols = Math.floor((width * scale - 2 * margin) / holePitch);
-    
-    // Draw holes
-    ctx.fillStyle = 'black';
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            const x = margin + j * holePitch + holePitch/2;
-            const y = margin + i * holePitch + holePitch/2;
-            
-            // Skip holes in handle mounting areas if this is a handle side
-            if (isHandleSide) {
-                const handleCenterY = canvas.height/2;
-                const handleCenterX = canvas.width/2;
-                const inHandleArea = Math.abs(x - handleCenterX) < handlePlateWidth/2 && 
-                                   Math.abs(y - handleCenterY) < handlePlateHeight/2;
-                
-                if (inHandleArea) continue;
-            }
-            
-            ctx.beginPath();
-            ctx.arc(x, y, holeRadius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-    
-    // Create texture from canvas
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    
-    // Create material with the perforated texture
-    const material = new THREE.MeshStandardMaterial({
-        map: texture,
-        metalness: 0.8,
-        roughness: 0.3,
-        side: THREE.DoubleSide,
-        alphaTest: 0.5,
-        transparent: true
-    });
-    
-    // Create wall mesh
-    const geometry = new THREE.PlaneGeometry(width, height);
-    const wall = new THREE.Mesh(geometry, material);
-    
-    return wall;
-}
-
-
-
-// Create flat-mounted handle
-function createHandle() {
-    const handle = new THREE.Group();
-    
-    // Base plate
-    const basePlate = new THREE.Mesh(
-        new THREE.BoxGeometry(
-            dims.basePlateWidth,
-            dims.basePlateHeight,
-            dims.basePlateThickness,
-            dims.basePlateDepth
-        ),
-        materials.steel
-    );
-    handle.add(basePlate);
-    
-    // Handle assembly
-    const handleGroup = new THREE.Group();
-    
-    // Vertical supports
-    const verticalGeometry = new THREE.CylinderGeometry(
-        dims.handleTubeRadius,
-        dims.handleTubeRadius,
-        dims.handleHeight,
-        16
-    );
-    
-    const leftVertical = new THREE.Mesh(verticalGeometry, materials.darkSteel);
-    leftVertical.position.set(-dims.handleWidth/2, 0, dims.handleDepth);
-    handleGroup.add(leftVertical);
-    
-    const rightVertical = new THREE.Mesh(verticalGeometry, materials.darkSteel);
-    rightVertical.position.set(dims.handleWidth/2, 0, dims.handleDepth);
-    handleGroup.add(rightVertical);
-    
-    // Horizontal grip
-    const horizontalGeometry = new THREE.CylinderGeometry(
-        dims.handleTubeRadius,
-        dims.handleTubeRadius,
-        dims.handleWidth - dims.handleTubeRadius * 2,
-        16
-    );
-    const horizontalHandle = new THREE.Mesh(horizontalGeometry, materials.darkSteel);
-    horizontalHandle.rotation.z = Math.PI/2;
-    horizontalHandle.position.set(0, dims.handleHeight/2, dims.handleDepth);
-    handleGroup.add(horizontalHandle);
-    
-    // Rubber grip
-    const rubberGeometry = new THREE.CylinderGeometry(
-        dims.handleTubeRadius + dims.rubberThickness,
-        dims.handleTubeRadius + dims.rubberThickness,
-        dims.handleWidth - dims.handleTubeRadius * 4,
-        16
-    );
-    const rubberGrip = new THREE.Mesh(rubberGeometry, materials.rubber);
-    rubberGrip.rotation.z = Math.PI/2;
-    rubberGrip.position.set(0, dims.handleHeight/2, dims.handleDepth);
-    handleGroup.add(rubberGrip);
-    
-    // Center handle group
-    handleGroup.position.y = dims.handleHeight/2;
-    handle.add(handleGroup);
-    
-    // Mounting bolts
-    const boltGeometry = new THREE.CylinderGeometry(4, 4, dims.basePlateThickness * 2, 6);
-    const boltPositions = [
-        [-dims.basePlateWidth/3, dims.basePlateHeight/3],
-        [dims.basePlateWidth/3, dims.basePlateHeight/3],
-        [-dims.basePlateWidth/3, -dims.basePlateHeight/3],
-        [dims.basePlateWidth/3, -dims.basePlateHeight/3]
-    ];
-    
-    boltPositions.forEach(([x, y]) => {
-        const bolt = new THREE.Mesh(boltGeometry, materials.darkSteel);
-        bolt.position.set(x, y, 0);
-        bolt.rotation.x = Math.PI/2;
-        handle.add(bolt);
-    });
-    
-    return handle;
-}
-
-// Add stepped edges to box
-
-// Add these to your dims object at the top
-dims.wheelDiameter = 42;
-dims.wheelThickness = 10;
-dims.wheelOffset = 30;
-
-// Add these new materials
-materials.fibreglass = new THREE.MeshStandardMaterial({
-    color: 0xE0E0E0,
-    metalness: 0.2,
-    roughness: 0.8,
-    side: THREE.DoubleSide
-});
-
-materials.wheelRubber = new THREE.MeshStandardMaterial({
-    color: 0x101010,
-    metalness: 0.0,
-    roughness: 0.9,
-    side: THREE.DoubleSide
-});
-
-
-// Add these new materials
-materials.fibreglass = new THREE.MeshStandardMaterial({
-    color: 0xE0E0E0,
-    metalness: 0.2,
-    roughness: 0.8,
-    side: THREE.DoubleSide
-});
-
-materials.wheelRubber = new THREE.MeshStandardMaterial({
-    color: 0x101010,
-    metalness: 0.0,
-    roughness: 0.9,
-    side: THREE.DoubleSide
-});
-
-
-
-
-
-function createWheelSpokes() {
-    const spokes = new THREE.Group();
-    const spokeCount = 6;
-    const spokeWidth = 4;
-    const radius = dims.wheelDiameter/2 - 5;
-    
-    for(let i = 0; i < spokeCount; i++) {
-        const angle = (i / spokeCount) * Math.PI * 2;
-        const spoke = new THREE.Mesh(
-            new THREE.BoxGeometry(radius, 2, spokeWidth),
-            materials.fibreglass
-        );
-        spoke.position.x = radius/2;
-        spoke.rotation.y = angle;
-        spokes.add(spoke);
-    }
-    return spokes;
-}
-
-function createCastorWheel() {
-    const wheel = new THREE.Group();
-
-    // Main wheel core
-    const wheelCore = new THREE.CylinderGeometry(
-        dims.wheelDiameter/2 - 5,
-        dims.wheelDiameter/2 - 5,
-        dims.wheelThickness,
-        24
-    );
-    const wheelCoreMesh = new THREE.Mesh(wheelCore, materials.fibreglass);
-    wheelCoreMesh.rotation.z = Math.PI/2;
-    
-
-    // Rubber tire (using cylinder instead of torus)
-    const tire = new THREE.Mesh(
-        new THREE.CylinderGeometry(dims.wheelDiameter/2, dims.wheelDiameter/2, dims.wheelThickness, 24),
-        materials.wheelRubber
-    );
-    tire.rotation.z = Math.PI/2;
-
-    // Spokes
-    const spokes = createWheelSpokes();
-
-    // Center hub
-    const hub = new THREE.Mesh(
-        new THREE.CylinderGeometry(8, 8, dims.wheelThickness + 2, 16),
-        materials.steel
-    );
-    hub.rotation.z = Math.PI/2;
-
-    // Wheel assembly
-    const wheelAssembly = new THREE.Group();
-    wheelAssembly.add(wheelCoreMesh, tire, spokes, hub);
-
-    // Mounting bracket
-    const bracket = new THREE.Group();
-
-    // Fork for wheel
-    const forkGeometry = new THREE.BoxGeometry(dims.wheelThickness + 5, 40, 5);
-    const forkLeft = new THREE.Mesh(forkGeometry, materials.steel);
-    const forkRight = new THREE.Mesh(forkGeometry, materials.steel);
-    
-    forkLeft.position.set(-(dims.wheelThickness/2 + 2.5), 20, 0);
-    forkRight.position.set(dims.wheelThickness/2 + 2.5, 20, 0);
-
-    // Top mounting plate
-    const plateGeometry = new THREE.BoxGeometry(40, 5, 40);
-    const plate = new THREE.Mesh(plateGeometry, materials.steel);
-    plate.position.y = 40;
-
-    bracket.add(forkLeft, forkRight, plate);
-    wheel.add(wheelAssembly, bracket);
-
-    return wheel;
-}
-
-
-
-function addCastorWheels(box) {
-    const wheelPositions = [
-        {x: dims.length/2 - dims.wheelOffset, z: dims.width/2 - dims.wheelOffset},
-        {x: -dims.length/2 + dims.wheelOffset, z: dims.width/2 - dims.wheelOffset},
-        {x: dims.length/2 - dims.wheelOffset, z: -dims.width/2 + dims.wheelOffset},
-        {x: -dims.length/2 + dims.wheelOffset, z: -dims.width/2 + dims.wheelOffset}
-    ];
-
-    wheelPositions.forEach((pos) => {
-        const wheel = createCastorWheel();
-        wheel.position.set(pos.x, -dims.wheelDiameter/2, pos.z);
-        box.add(wheel);
-        wheel.rotation.y = Math.PI/4;
-    });
-}
-
-// Add this line after your box creation
-
-// Add this line after your box creation
-
-
-// Add wheels
-
-
-function createSteppedEdge(length) {
-   const shape = new THREE.Shape();
-   const t = dims.thickness;
-   const s = dims.stepInset;
-   const h = dims.stepHeight;
-   const bendR = 2.5;
-   const hemLength = 15;
-
-   // Main profile
-   shape.moveTo(0, 0);
-   shape.lineTo(0, t);
-   shape.lineTo(s, s + t);
-   shape.lineTo(s, s + h);
-   shape.lineTo(0, s + h + s);
-   shape.lineTo(0, s + h + s + h);
-
-   // Add outward hem only if enabled
-   if(config.enableHemming) {
-       shape.lineTo(hemLength, s + h + s + h);
-       shape.bezierCurveTo(
-           hemLength + bendR, s + h + s + h,
-           hemLength + bendR, s + h + s + h - bendR,
-           hemLength, s + h + s + h - (2 * bendR)
-       );
-       shape.lineTo(0, s + h + s + h - (2 * bendR));
-   }
-
-   // Inner profile
-   shape.lineTo(t, s + h + s + h - (config.enableHemming ? (2 * bendR) : 0));
-   shape.lineTo(t, s + h + s);
-   shape.lineTo(s - t, s + h);
-   shape.lineTo(s - t, s);
-   shape.lineTo(t, t);
-   shape.lineTo(0, 0);
-
-   const extrudeSettings = {
-       steps: 1,
-       depth: length,
-       bevelEnabled: false
-   };
+   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings); 
+   return new THREE.Mesh(geometry, materials.steel); 
+} 
+ 
+function addSteppedEdges(box) { 
+    if (config.enableStraightTop) return; 
+    const vertOffset = step_dims.stepHeight*2  - step_dims.stepInset * 2;  // Offset to align with top edge 
+     
+    // Front edge (longer edge) 
+    const frontEdge = createSteppedEdge(dims.length); 
+    frontEdge.position.set(dims.length/2, dims.height + vertOffset, -dims.width/2 + dims.thickness/2); 
+    frontEdge.rotation.y = 6*Math.PI/4; 
+    box.add(frontEdge); 
+     
+    // Back edge (longer edge) 
+    const backEdge = createSteppedEdge(dims.length); 
+    backEdge.position.set(-dims.length/2, dims.height + vertOffset, dims.width/2 - dims.thickness); 
+    backEdge.rotation.y = 10*Math.PI/4; 
+    box.add(backEdge); 
+     
+    // Left edge (shorter edge) 
+    const leftEdge = createSteppedEdge(dims.width + dims.thickness * 2); 
+    leftEdge.position.set(dims.length/2 - dims.thickness, dims.height + vertOffset, dims.width/2); 
+    leftEdge.rotation.y = -Math.PI; 
+    box.add(leftEdge); 
+     
+    // Right edge (shorter edge) 
+    const rightEdge = createSteppedEdge(dims.width + dims.thickness * 2); 
+    rightEdge.position.set(-dims.length/2 + dims.thickness, dims.height + vertOffset, -dims.width/2); 
+    rightEdge.rotation.y = 8*Math.PI/4; 
+    box.add(rightEdge); 
+} 
+ 
+function addShadowCatcher() { 
+    const shadowGeo = new THREE.PlaneGeometry(800, 800); 
+    const shadowMat = new THREE.ShadowMaterial({ 
+        opacity: 0.08  // Very subtle shadow 
+    }); 
+    const shadowCatcher = new THREE.Mesh(shadowGeo, shadowMat); 
+     
+    // Position slightly towards back 
+    shadowCatcher.rotation.x = -Math.PI / 2; 
+    shadowCatcher.position.y = -dims.thickness; 
+    shadowCatcher.position.z = -100;  // Offset towards back 
+    shadowCatcher.receiveShadow = true; 
+     
+    scene.add(shadowCatcher); 
+} 
+ 
+ 
+// Modify createBox function to use config 
+function createBox() { 
+   const box = new THREE.Group(); 
+ 
+   // Base 
+   const base = new THREE.Mesh( 
+       new THREE.BoxGeometry(dims.length, dims.thickness, dims.width), 
+       materials.steel 
+   ); 
+   base.position.y = -dims.thickness/2; 
+   box.add(base); 
+ 
+   // Create walls 
+   const wallConfigs = [ 
+       { 
+           width: dims.length, 
+           height: dims.height, 
+           position: [0, dims.height/2, dims.width/2], 
+           rotation: [0, 0, 0], 
+           isHandleSide: false 
+       }, 
+       { 
+           width: dims.length, 
+           height: dims.height, 
+           position: [0, dims.height/2, -dims.width/2], 
+           rotation: [0, Math.PI, 0], 
+           isHandleSide: false 
+       }, 
+       { 
+           width: dims.width, 
+           height: dims.height, 
+           position: [-dims.length/2, dims.height/2, 0], 
+           rotation: [0, -Math.PI/2, 0], 
+           isHandleSide: true 
+       }, 
+       { 
+           width: dims.width, 
+           height: dims.height, 
+           position: [dims.length/2, dims.height/2, 0], 
+           rotation: [0, Math.PI/2, 0], 
+           isHandleSide: true 
+       } 
+   ]; 
+ 
+   wallConfigs.forEach(({ width, height, position, rotation, isHandleSide }) => { 
+       // Create either perforated or plain wall based on config 
+       const wall = config.enablePerforation ?  
+           createPerforatedWall(width, height, isHandleSide) : 
+           new THREE.Mesh( 
+               new THREE.PlaneGeometry(width, height), 
+               materials.steel 
+           ); 
+        
+       wall.position.set(...position); 
+       wall.rotation.set(...rotation); 
+       box.add(wall); 
+   }); 
+  // Add the ribs after creating the basic box structure 
+  addRibs(box); 
+  addSteppedEdges(box); 
+  addTopRubberLining(box); 
+  // addSteppedRubberLining(box); 
+  // if (config.enableStraightTop) { 
+  //       addStepCovers(box); 
+  //   } 
+  // Add this line in your createBox function after adding walls but before adding stepped edges 
    
-   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-   return new THREE.Mesh(geometry, materials.steel);
-}
-
-function addSteppedEdges(box) {
-    const vertOffset = dims.stepHeight*2  - dims.stepInset * 2;  // Offset to align with top edge
-    
-    // Front edge (longer edge)
-    const frontEdge = createSteppedEdge(dims.length);
-    frontEdge.position.set(dims.length/2, dims.height + vertOffset, -dims.width/2 + dims.thickness/2);
-    frontEdge.rotation.y = 6*Math.PI/4;
-    box.add(frontEdge);
-    
-    // Back edge (longer edge)
-    const backEdge = createSteppedEdge(dims.length);
-    backEdge.position.set(-dims.length/2, dims.height + vertOffset, dims.width/2 - dims.thickness);
-    backEdge.rotation.y = 10*Math.PI/4;
-    box.add(backEdge);
-    
-    // Left edge (shorter edge)
-    const leftEdge = createSteppedEdge(dims.width + dims.thickness * 2);
-    leftEdge.position.set(dims.length/2 - dims.thickness, dims.height + vertOffset, dims.width/2);
-    leftEdge.rotation.y = -Math.PI;
-    box.add(leftEdge);
-    
-    // Right edge (shorter edge)
-    const rightEdge = createSteppedEdge(dims.width + dims.thickness * 2);
-    rightEdge.position.set(-dims.length/2 + dims.thickness, dims.height + vertOffset, -dims.width/2);
-    rightEdge.rotation.y = 8*Math.PI/4;
-    box.add(rightEdge);
-}
-
-function addShadowCatcher() {
-    const shadowGeo = new THREE.PlaneGeometry(800, 800);
-    const shadowMat = new THREE.ShadowMaterial({
-        opacity: 0.08  // Very subtle shadow
-    });
-    const shadowCatcher = new THREE.Mesh(shadowGeo, shadowMat);
-    
-    // Position slightly towards back
-    shadowCatcher.rotation.x = -Math.PI / 2;
-    shadowCatcher.position.y = -dims.thickness;
-    shadowCatcher.position.z = -100;  // Offset towards back
-    shadowCatcher.receiveShadow = true;
-    
-    scene.add(shadowCatcher);
-}
-
-
-// Modify createBox function to use config
-function createBox() {
-   const box = new THREE.Group();
-
-   // Base
-   const base = new THREE.Mesh(
-       new THREE.BoxGeometry(dims.length, dims.thickness, dims.width),
-       materials.steel
-   );
-   base.position.y = -dims.thickness/2;
-   box.add(base);
-
-   // Create walls
-   const wallConfigs = [
-       {
-           width: dims.length,
-           height: dims.height,
-           position: [0, dims.height/2, dims.width/2],
-           rotation: [0, 0, 0],
-           isHandleSide: false
-       },
-       {
-           width: dims.length,
-           height: dims.height,
-           position: [0, dims.height/2, -dims.width/2],
-           rotation: [0, Math.PI, 0],
-           isHandleSide: false
-       },
-       {
-           width: dims.width,
-           height: dims.height,
-           position: [-dims.length/2, dims.height/2, 0],
-           rotation: [0, -Math.PI/2, 0],
-           isHandleSide: true
-       },
-       {
-           width: dims.width,
-           height: dims.height,
-           position: [dims.length/2, dims.height/2, 0],
-           rotation: [0, Math.PI/2, 0],
-           isHandleSide: true
-       }
-   ];
-
-   wallConfigs.forEach(({ width, height, position, rotation, isHandleSide }) => {
-       // Create either perforated or plain wall based on config
-       const wall = config.enablePerforation ? 
-           createPerforatedWall(width, height, isHandleSide) :
-           new THREE.Mesh(
-               new THREE.PlaneGeometry(width, height),
-               materials.steel
-           );
-       
-       wall.position.set(...position);
-       wall.rotation.set(...rotation);
-       box.add(wall);
-   });
-
    
-  addSteppedEdges(box);
-   return box;
-}
-
-// Initialize scene
-const { scene, camera, renderer } = initScene();
-const controls = new OrbitControls(camera, renderer.domElement);
-
-// Create and add box
-const box = createBox();
-scene.add(box);
-addHandles(scene, box);
-enableShadows(box);
-addShadowCatcher();
-
-
-
-// Add handles
-function addHandles(scene, box) {
-   if (!config.enableHandles) return;
-
-   const leftHandle = createHandle();
-   leftHandle.position.set(-dims.length/2, dims.height/2, 0);
-   leftHandle.rotation.y = Math.PI/2;
-   leftHandle.rotation.x = Math.PI;
-   scene.add(leftHandle);
-
-   const rightHandle = createHandle();
-   rightHandle.position.set(dims.length/2, dims.height/2, 0);
-   rightHandle.rotation.y = -Math.PI/2;
-   rightHandle.rotation.x = Math.PI;
-   scene.add(rightHandle);
-}
-
-// Add lights
-function addLights() {
-    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
-    scene.add(ambient);
-
-    // Main light casting shadow
-    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
-    mainLight.position.set(200, 200, 400); // Position for back shadow
-    mainLight.castShadow = true;
+   return box; 
+} 
+ 
+// Initialize scene 
+const { scene, camera, renderer } = initScene(); 
+const controls = new OrbitControls(camera, renderer.domElement); 
+ 
+// Create and add box 
+const box = createBox(); 
+scene.add(box); 
+addHandles(scene, box); 
+enableShadows(box); 
+addShadowCatcher(); 
+ 
+ 
+// Add handles 
+function addHandles(scene, box) { 
+   if (!config.enableHandles) return; 
+ 
+   const leftHandle = createHandle(); 
+   leftHandle.position.set(-dims.length/2, dims.height/2, 0); 
+   leftHandle.rotation.y = Math.PI/2; 
+   leftHandle.rotation.x = Math.PI; 
+   scene.add(leftHandle); 
+ 
+   const rightHandle = createHandle(); 
+   rightHandle.position.set(dims.length/2, dims.height/2, 0); 
+   rightHandle.rotation.y = -Math.PI/2; 
+   rightHandle.rotation.x = Math.PI; 
+   scene.add(rightHandle); 
+} 
+ 
+// Add lights 
+function addLights() { 
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0); 
+    scene.add(ambient); 
+ 
+    // Main light casting shadow 
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0); 
+    mainLight.position.set(200, 200, 400); // Position for back shadow 
+    mainLight.castShadow = true; 
+     
+    // Softer shadow settings 
     
-    // Softer shadow settings
-   
-    scene.add(mainLight);
-
-    // Fill lights remain same
-    const fillLights = [
-        { pos: [-150, 150, 150], intensity: 1.2 },
-        { pos: [150, -150, -150], intensity: 1.0 },
-        { pos: [0, 200, 0], intensity: 1.5 }
-    ];
-
-    fillLights.forEach(({pos, intensity}) => {
-        const light = new THREE.DirectionalLight(0xffffff, intensity);
-        light.position.set(...pos);
-        scene.add(light);
-    });
-}
-
-
-// Make all meshes cast and receive shadows
-function enableShadows(object) {
-    if(object instanceof THREE.Mesh) {
-        object.castShadow = true;
-        object.receiveShadow = true;
-    }
-    if(object.children) {
-        object.children.forEach(child => enableShadows(child));
-    }
-}
-// Apply to box after creation
-enableShadows(box);
-
-addLights();
-if (config.enableWheels) {
-    addCastorWheels(box);
-}
-
-// Animation loop
-const animate = () => {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-};
-
-animate();
-
-// Handle window resizing
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}, false);
+    scene.add(mainLight); 
+ 
+    // Fill lights remain same 
+    const fillLights = [ 
+        { pos: [-150, 150, 150], intensity: 1.2 }, 
+        { pos: [150, -150, -150], intensity: 1.0 }, 
+        { pos: [0, 200, 0], intensity: 1.5 } 
+    ]; 
+ 
+    fillLights.forEach(({pos, intensity}) => { 
+        const light = new THREE.DirectionalLight(0xffffff, intensity); 
+        light.position.set(...pos); 
+        scene.add(light); 
+    }); 
+} 
+ 
+ 
+// Make all meshes cast and receive shadows 
+function enableShadows(object) { 
+    if(object instanceof THREE.Mesh) { 
+        object.castShadow = true; 
+        object.receiveShadow = true; 
+    } 
+    if(object.children) { 
+        object.children.forEach(child => enableShadows(child)); 
+    } 
+} 
+// Apply to box after creation 
+enableShadows(box); 
+ 
+addLights(); 
+if (config.enableWheels) { 
+    addCastorWheels(box); 
+} 
+ 
+// Animation loop 
+const animate = () => { 
+    requestAnimationFrame(animate); 
+    controls.update(); 
+    renderer.render(scene, camera); 
+}; 
+ 
+animate(); 
+ 
+// Handle window resizing 
+window.addEventListener('resize', () => { 
+    camera.aspect = window.innerWidth / window.innerHeight; 
+    camera.updateProjectionMatrix(); 
+    renderer.setSize(window.innerWidth, window.innerHeight); 
+}, false); 
+ 
+ 
