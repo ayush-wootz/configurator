@@ -15,6 +15,10 @@ function initScene() {
     
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(500, 500, 500);
+
+    
+    const savedPosition = getCameraPositionFromURL(); //fixed camera position
+    camera.position.copy(savedPosition.position); //fixed camera position
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -145,6 +149,33 @@ function createRubberMaterial(color) {
         roughness: 0.95,
         side: THREE.DoubleSide
     });
+}
+
+function updateURLWithCameraPosition(camera, controls) { //fixed camera position
+    const params = new URLSearchParams(window.location.search);
+    params.set('camX', camera.position.x);
+    params.set('camY', camera.position.y);
+    params.set('camZ', camera.position.z);
+    params.set('targetX', controls.target.x);
+    params.set('targetY', controls.target.y);
+    params.set('targetZ', controls.target.z);
+    window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+}
+
+function getCameraPositionFromURL() { //fixed camera position
+    const params = new URLSearchParams(window.location.search);
+    return {
+        position: {
+            x: parseFloat(params.get('camX')) || dims.length,
+            y: parseFloat(params.get('camY')) || dims.height,
+            z: parseFloat(params.get('camZ')) || dims.length
+        },
+        target: {
+            x: parseFloat(params.get('targetX')) || 0,
+            y: parseFloat(params.targetY) || 0,
+            z: parseFloat(params.targetZ) || 0
+        }
+    };
 }
 
 // Create perforated wall
@@ -668,6 +699,12 @@ function initBox() {
     const { scene, camera, renderer } = initScene();
     const controls = new OrbitControls(camera, renderer.domElement);
 
+    const savedPosition = getCameraPositionFromURL(); //fixed camera position
+    controls.target.copy(savedPosition.target); //fixed camera position
+    
+    controls.addEventListener('change', () => { //fixed camera position
+        updateURLWithCameraPosition(camera, controls); //fixed camera position
+    }); //fixed camera position
     // Set up lighting
     addLights(scene);
 
