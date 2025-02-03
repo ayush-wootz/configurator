@@ -29,7 +29,7 @@ function getURLParameters() {
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
     rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5,
     rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0,
-    materialType: urlParams.get('material') || 'aluminium', // aluminium, steel, mildSteel darkSteel
+    materialType: urlParams.get('material') || 'aluminium' // aluminium, steel, mildSteel darkSteel
   };
 }
 
