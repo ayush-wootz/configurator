@@ -12,12 +12,11 @@ const RUBBER_COLORS = {
 
 let clippingPlane1, clippingPlane2, clippingPlane3, clippingPlane4;
 
-
 function getURLParameters() {
   const urlParams = new URLSearchParams(window.location.search);
   return {
     length: parseInt(urlParams.get('len')) || 380,
-    width: parseInt(urlParams.get('wid')) || 200,
+    width: parseInt(urlParams.get('wid')) || 180,
     height: parseInt(urlParams.get('hei')) || 200,
     enableHandles: urlParams.get('handle') === 'true' || false,
     enablePerforation: urlParams.get('perf') === 'true' || true,
@@ -25,11 +24,11 @@ function getURLParameters() {
     enableRibs: urlParams.get('ribs') === 'true' || false,
     enableStraightTop: urlParams.get('straight') === 'true' || false,
     enableRubberLining: urlParams.get('rubber') === 'true' || false,
-    rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
+    rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'black'],
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
     rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5,
     rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0,
-    materialType: urlParams.get('material') || 'steel' // aluminium, steel, mildSteel darkSteel
+    materialType: urlParams.get('material') || 'aluminium', // aluminium, steel, mildSteel darkSteel
   };
 }
 
@@ -141,62 +140,74 @@ const materials = {
   }),
 
   aluminium: new THREE.MeshStandardMaterial({
-    color: 0xf5f5f5,      // Off-white
-    metalness: 0.6,       // Moderate metallic feel
-    roughness: 0.3,       // Smoother than matte
-    reflectivity: 0.5,    // Moderate reflectivity
-    clearcoat: 0.5,       // Medium gloss layer
+    color: 0xf5f5f5, // Off-white
+    metalness: 0.6, // Moderate metallic feel
+    roughness: 0.3, // Smoother than matte
+    reflectivity: 0.5, // Moderate reflectivity
+    clearcoat: 0.5, // Medium gloss layer
     clearcoatRoughness: 0.2, // Smooth clear coat
-    transmission: 0.0,    // Opaque
+    transmission: 0.0, // Opaque
     side: THREE.DoubleSide,
     envMapIntensity: 0.7, // More interaction with environment
-    sheen: 0.2,           // Soft diffuse sheen
-    sheenRoughness: 0.3,  // Slightly glossy feel
-    ior: 1.48,           // Similar to aluminum
-    specularIntensity: 0.7
+    sheen: 0.2, // Soft diffuse sheen
+    sheenRoughness: 0.3, // Slightly glossy feel
+    ior: 1.48, // Similar to aluminum
+    specularIntensity: 0.7,
   }),
 };
 
 // Initialize scene
 function initScene() {
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xE4E4E4);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xe4e4e4);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(500, 500, 500).multiplyScalar(1.5); // Zoom out further
-    camera.lookAt(0, 0, 0); // Explicitly look at scene center
+  const camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    2000
+  );
+  camera.position.set(500, 500, 500).multiplyScalar(1.5); // Zoom out further
+  camera.lookAt(0, 0, 0); // Explicitly look at scene center
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.localClippingEnabled = true; // Enable clipping system
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.localClippingEnabled = true; // Enable clipping system
 
-    // Initialize clipping planes with normalized normals
-    const diagonalAngle1 = Math.atan2(dims.width, dims.length);
-    const diagonalAngle2 = Math.PI/2 - diagonalAngle1;
-    clippingPlane1 = new THREE.Plane(
-        new THREE.Vector3(
-            Math.cos(-diagonalAngle2),
-            0,
-            Math.sin(-diagonalAngle2)
-        ).normalize(),0
-    );
-    
-    clippingPlane2 = new THREE.Plane(new THREE.Vector3(Math.cos(diagonalAngle2), 0, Math.sin(diagonalAngle2)), 1);
-    clippingPlane3 = new THREE.Plane(new THREE.Vector3(Math.cos(-diagonalAngle2), 0, Math.sin(-diagonalAngle2)), 1);
-    clippingPlane3.normal.negate(); 
-    clippingPlane4 = new THREE.Plane(new THREE.Vector3(Math.cos(diagonalAngle2), 0, Math.sin(diagonalAngle2)), 1);
-    clippingPlane4.normal.negate();
+  // Initialize clipping planes with normalized normals
+  const diagonalAngle1 = Math.atan2(dims.width, dims.length);
+  const diagonalAngle2 = Math.PI / 2 - diagonalAngle1;
+  clippingPlane1 = new THREE.Plane(
+    new THREE.Vector3(
+      Math.cos(-diagonalAngle2),
+      0,
+      Math.sin(-diagonalAngle2)
+    ).normalize(),
+    0
+  );
 
-    
+  clippingPlane2 = new THREE.Plane(
+    new THREE.Vector3(Math.cos(diagonalAngle2), 0, Math.sin(diagonalAngle2)),
+    1
+  );
+  clippingPlane3 = new THREE.Plane(
+    new THREE.Vector3(Math.cos(-diagonalAngle2), 0, Math.sin(-diagonalAngle2)),
+    1
+  );
+  clippingPlane3.normal.negate();
+  clippingPlane4 = new THREE.Plane(
+    new THREE.Vector3(Math.cos(diagonalAngle2), 0, Math.sin(diagonalAngle2)),
+    1
+  );
+  clippingPlane4.normal.negate();
 
-    document.body.appendChild(renderer.domElement);
-    globalRenderer = renderer;
+  document.body.appendChild(renderer.domElement);
+  let globalRenderer = renderer;
 
-    return { scene, camera, renderer };
+  return { scene, camera, renderer };
 }
-
 
 // Create rubber material with configurable color
 function createRubberMaterial(color) {
@@ -540,8 +551,6 @@ function createPerforatedWall(width, height, isHandleSide = true) {
   return wallGroup;
 }
 
-
-
 // Create wheel components
 function createWheelSpokes() {
   const spokes = new THREE.Group();
@@ -689,88 +698,99 @@ function createRibSegment(width, startPos = 0, segmentWidth = null) {
   return mesh;
 }
 
-
 function createSteppedEdge(length, material) {
-    const shape = new THREE.Shape();
-    const t = dims.thickness;
-    const s = step_dims.stepInset;
-    const h = step_dims.stepHeight;
-    // Main profile
-    shape.moveTo(0, 0);
-    shape.lineTo(0, t);
-    shape.lineTo(s, s + t);
-    shape.lineTo(s, s + h);
-    shape.lineTo(0, s + h + s);
-    shape.lineTo(0, s + h + s + h);
-    // Inner profile
-    shape.lineTo(t, s + h + s + h);
-    shape.lineTo(t, s + h + s);
-    shape.lineTo(s - t, s + h);
-    shape.lineTo(s - t, s);
-    shape.lineTo(t, t);
-    shape.lineTo(0, 0);
+  const shape = new THREE.Shape();
+  const t = dims.thickness;
+  const s = step_dims.stepInset;
+  const h = step_dims.stepHeight;
+  // Main profile
+  shape.moveTo(0, 0);
+  shape.lineTo(0, t);
+  shape.lineTo(s, s + t);
+  shape.lineTo(s, s + h);
+  shape.lineTo(0, s + h + s);
+  shape.lineTo(0, s + h + s + h);
+  // Inner profile
+  shape.lineTo(t, s + h + s + h);
+  shape.lineTo(t, s + h + s);
+  shape.lineTo(s - t, s + h);
+  shape.lineTo(s - t, s);
+  shape.lineTo(t, t);
+  shape.lineTo(0, 0);
 
-    const extrudeSettings = {
-        steps: 1,
-        depth: length,
-        bevelEnabled: true
-    };
+  const extrudeSettings = {
+    steps: 1,
+    depth: length,
+    bevelEnabled: true,
+  };
 
-    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    return new THREE.Mesh(geometry, material);
+  const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  return new THREE.Mesh(geometry, material);
 }
-
 
 function addSteppedEdges(box) {
-    if (config.enableStraightTop) return;
+  if (config.enableStraightTop) return;
 
-    const vertOffset = step_dims.stepHeight * 2 - step_dims.stepInset * 2;
-    const edgeGap = 0;
+  const vertOffset = step_dims.stepHeight * 2 - step_dims.stepInset * 2;
+  const edgeGap = 0;
 
-    const edges = [
-        {
-            dim: dims.width - edgeGap,
-            pos: [-dims.length / 2 + edgeGap, dims.height + vertOffset, -dims.width / 2 + edgeGap],
-            rotY: 0,
-            materialType: params.materialType, // Store material type instead of direct reference
-            clippingPlanes: [clippingPlane4, clippingPlane3]
-        },
-        {
-            dim: dims.length - 2,
-            pos: [-dims.length / 2 + edgeGap, dims.height + vertOffset, dims.width / 2 - edgeGap],
-            rotY: Math.PI / 2,
-            materialType: params.materialType,
-            clippingPlanes: [clippingPlane2, clippingPlane3]
-        },
-        {
-            dim: dims.width - edgeGap,
-            pos: [dims.length / 2 - edgeGap, dims.height + vertOffset, dims.width / 2 - edgeGap],
-            rotY: Math.PI,
-            materialType: params.materialType,
-            clippingPlanes: [clippingPlane1, clippingPlane2]
-        },
-        {
-            dim: dims.length - 2,
-            pos: [dims.length / 2 - edgeGap, dims.height + vertOffset, -dims.width / 2 + edgeGap],
-            rotY: -Math.PI / 2,
-            materialType: params.materialType,
-            clippingPlanes: [clippingPlane1, clippingPlane4]
-        }
-    ];
-    edges.forEach(({ dim, pos, rotY, materialType, clippingPlanes }) => {
-        // Clone the material to avoid shared instances
-        const edgeMaterial = materials[params.materialType].clone();
-        edgeMaterial.clippingPlanes = clippingPlanes; // Assign clipping planes
+  const edges = [
+    {
+      dim: dims.width - edgeGap,
+      pos: [
+        -dims.length / 2 + edgeGap,
+        dims.height + vertOffset,
+        -dims.width / 2 + edgeGap,
+      ],
+      rotY: 0,
+      materialType: params.materialType, // Store material type instead of direct reference
+      clippingPlanes: [clippingPlane4, clippingPlane3],
+    },
+    {
+      dim: dims.length - 2,
+      pos: [
+        -dims.length / 2 + edgeGap,
+        dims.height + vertOffset,
+        dims.width / 2 - edgeGap,
+      ],
+      rotY: Math.PI / 2,
+      materialType: params.materialType,
+      clippingPlanes: [clippingPlane2, clippingPlane3],
+    },
+    {
+      dim: dims.width - edgeGap,
+      pos: [
+        dims.length / 2 - edgeGap,
+        dims.height + vertOffset,
+        dims.width / 2 - edgeGap,
+      ],
+      rotY: Math.PI,
+      materialType: params.materialType,
+      clippingPlanes: [clippingPlane1, clippingPlane2],
+    },
+    {
+      dim: dims.length - 2,
+      pos: [
+        dims.length / 2 - edgeGap,
+        dims.height + vertOffset,
+        -dims.width / 2 + edgeGap,
+      ],
+      rotY: -Math.PI / 2,
+      materialType: params.materialType,
+      clippingPlanes: [clippingPlane1, clippingPlane4],
+    },
+  ];
+  edges.forEach(({ dim, pos, rotY, materialType, clippingPlanes }) => {
+    // Clone the material to avoid shared instances
+    const edgeMaterial = materials[params.materialType].clone();
+    edgeMaterial.clippingPlanes = clippingPlanes; // Assign clipping planes
 
-        const edge = createSteppedEdge(dim, edgeMaterial);
-        edge.position.set(...pos);
-        edge.rotation.y = rotY;
-        box.add(edge);
-    });
-
+    const edge = createSteppedEdge(dim, edgeMaterial);
+    edge.position.set(...pos);
+    edge.rotation.y = rotY;
+    box.add(edge);
+  });
 }
-
-
 
 function addRibs(box) {
   const ribPositions = calculateRibPositions(dims.height);
