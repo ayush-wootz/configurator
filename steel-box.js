@@ -17,7 +17,7 @@ function getURLParameters() {
   const urlParams = new URLSearchParams(window.location.search);
   return {
     length: parseInt(urlParams.get('len')) || 380,
-    width: parseInt(urlParams.get('wid')) || 180,
+    width: parseInt(urlParams.get('wid')) || 200,
     height: parseInt(urlParams.get('hei')) || 200,
     enableHandles: urlParams.get('handle') === 'true' || false,
     enablePerforation: urlParams.get('perf') === 'true' || true,
@@ -25,11 +25,11 @@ function getURLParameters() {
     enableRibs: urlParams.get('ribs') === 'true' || false,
     enableStraightTop: urlParams.get('straight') === 'true' || false,
     enableRubberLining: urlParams.get('rubber') === 'true' || false,
-    rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'black'],
+    rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
     rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5,
     rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0,
-    materialType: urlParams.get('material') || 'aluminium' // aluminium, steel, mildSteel darkSteel
+    materialType: urlParams.get('material') || 'steel' // aluminium, steel, mildSteel darkSteel
   };
 }
 
