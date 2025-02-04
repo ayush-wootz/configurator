@@ -16,19 +16,19 @@ function getURLParameters() {
   const urlParams = new URLSearchParams(window.location.search);
   return {
     length: parseInt(urlParams.get('len')) || 380,
-    width: parseInt(urlParams.get('wid')) || 180,
+    width: parseInt(urlParams.get('wid')) || 200,
     height: parseInt(urlParams.get('hei')) || 200,
     enableHandles: urlParams.get('handle') === 'true' || false,
-    enablePerforation: urlParams.get('perf') === 'true' || true,
+    enablePerforation: urlParams.get('perf') === 'true' || false,
     enableWheels: urlParams.get('wheel') === 'true' || false,
     enableRibs: urlParams.get('ribs') === 'true' || false,
     enableStraightTop: urlParams.get('straight') === 'true' || false,
     enableRubberLining: urlParams.get('rubber') === 'true' || false,
-    rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'black'],
+    rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
     rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5,
     rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0,
-    materialType: urlParams.get('material') || 'aluminium', // aluminium, steel, mildSteel darkSteel
+    materialType: urlParams.get('material') || 'steel', // aluminium, steel, mildSteel, darkSteel
   };
 }
 
@@ -140,27 +140,27 @@ const materials = {
   }),
 
   aluminium: new THREE.MeshStandardMaterial({
-    color: 0xf5f5f5, // Off-white
-    metalness: 0.6, // Moderate metallic feel
-    roughness: 0.3, // Smoother than matte
-    reflectivity: 0.5, // Moderate reflectivity
-    clearcoat: 0.5, // Medium gloss layer
-    clearcoatRoughness: 0.2, // Smooth clear coat
-    transmission: 0.0, // Opaque
+    color: 0x222222,       // Dark grey, nearly black
+    metalness: 0.7,       // Some metallic properties
+    roughness: 0.8,       // High roughness for matte finish
+    reflectivity: 0.2,    // Low reflectivity
+    clearcoat: 0.1,       // Slight clear coat
+    clearcoatRoughness: 0.9, // Very rough coat
+    transmission: 0.0,    // Opaque
     side: THREE.DoubleSide,
-    envMapIntensity: 0.7, // More interaction with environment
-    sheen: 0.2, // Soft diffuse sheen
-    sheenRoughness: 0.3, // Slightly glossy feel
-    ior: 1.48, // Similar to aluminum
-    specularIntensity: 0.7,
+    envMapIntensity: 0.5, // Minimal environment reflection
+    sheen: 0.3,           // Slight sheen effect for realism
+    sheenRoughness: 0.8,  // Diffused light scattering
+    ior: 1.45,           // Index of refraction for aluminum
+    specularIntensity: 0.5
   }),
 };
 
 // Initialize scene
 function initScene() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xe4e4e4);
-
+  scene.background = new THREE.Color(0xBEE5FF);
+  
   const camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
@@ -550,6 +550,74 @@ function createPerforatedWall(width, height, isHandleSide = true) {
 
   return wallGroup;
 }
+
+
+function createWallWithHandle(width, height, isHandleSide) {
+    const wallGroup = new THREE.Group();
+    
+    // Create base wall with or without perforation
+    const wall = config.enablePerforation ? 
+        createPerforatedWall(width, height, isHandleSide) :
+        new THREE.Mesh(
+            new THREE.PlaneGeometry(width, height),
+            materials[params.materialType]
+        );
+    
+    wallGroup.add(wall);
+    
+    // Add integrated handle if needed (independent of perforation)
+    if (!config.enableHandles && isHandleSide) {
+        // Add handle cutout to the wall
+        const handleTexture = createHandleCutoutTexture(width, height);
+        
+        // Clone and modify the wall's material to include the cutout
+        const wallMaterial = materials[params.materialType].clone();
+        wallMaterial.alphaMap = handleTexture;
+        wallMaterial.transparent = true;
+        wallMaterial.alphaTest = 0.5;
+        wall.material = wallMaterial;
+        
+        // Add the rim
+        const rim = createHandleRim(width, height, isHandleSide);
+        if (rim) {
+            const handleYOffset = height * 0.3 - height/2;
+            rim.position.set(0, -handleYOffset, 1);
+            rim.rotation.x = Math.PI;
+            wallGroup.add(rim);
+        }
+    }
+    
+    return wallGroup;
+}
+
+// Helper function to create handle cutout texture
+function createHandleCutoutTexture(width, height) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    const scale = 10;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    
+    // Make everything opaque (white)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Create transparent cutout for handle
+    ctx.globalCompositeOperation = 'destination-out';
+    const handleCenterY = canvas.height * 0.3;
+    const handleCenterX = canvas.width/2;
+    drawIntegratedHandle(ctx, handleCenterX, handleCenterY, scale);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+}
+
+
+
+
+
 
 // Create wheel components
 function createWheelSpokes() {
@@ -1113,12 +1181,13 @@ function createBox() {
   ];
 
   wallConfigs.forEach(({ width, height, position, rotation, isHandleSide }) => {
-    const wall = config.enablePerforation
-      ? createPerforatedWall(width, height, isHandleSide)
-      : new THREE.Mesh(
-          new THREE.PlaneGeometry(width, height),
-          materials[params.materialType]
-        );
+    // const wall = config.enablePerforation
+    //   ? createPerforatedWall(width, height, isHandleSide)
+    //   : new THREE.Mesh(
+    //       new THREE.PlaneGeometry(width, height),
+    //       materials[params.materialType]
+    //     );
+    const wall = createWallWithHandle(width, height, isHandleSide);
 
     wall.position.set(...position);
     wall.rotation.set(...rotation);
@@ -1149,9 +1218,9 @@ function addLights(scene) {
   scene.add(mainLight);
 
   const fillLights = [
-    { pos: [-150, 150, 150], intensity: 1.2 },
-    { pos: [150, -150, -150], intensity: 1.0 },
-    { pos: [0, 200, 0], intensity: 1.5 },
+    { pos: [-150, 150, 150], intensity: 4.2 },
+    { pos: [150, -150, -150], intensity: 4 },
+    { pos: [0, 200, 0], intensity: 4.5 },
   ];
 
   fillLights.forEach(({ pos, intensity }) => {
