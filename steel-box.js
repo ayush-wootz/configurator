@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RGBELoader } from 'https://unpkg.com/three@0.162.0/examples/jsm/loaders/RGBELoader.js?module';
+ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.localClippingEnabled = true;
 
@@ -10,12 +12,13 @@ const RUBBER_COLORS = {
   steel: '0xC0C0C0', // Steel Grey
 };
 
+
 let clippingPlane1, clippingPlane2, clippingPlane3, clippingPlane4;
 
 function getURLParameters() {
   const urlParams = new URLSearchParams(window.location.search);
   return {
-    length: parseInt(urlParams.get('len')) || 380,
+    length: parseInt(urlParams.get('len')) || 300,
     width: parseInt(urlParams.get('wid')) || 200,
     height: parseInt(urlParams.get('hei')) || 200,
     enableHandles: urlParams.get('handle') === 'true' || false,
@@ -77,8 +80,8 @@ dims.rubberThickness = Math.max(dims.width * 0.005, 1);
 dims.basePlateYposition = -dims.height / 2 + dims.height * 0.3;
 
 // Add rib parameters
-dims.ribDepth = 1;
-dims.ribWidth = 12;
+dims.ribDepth = 4;
+dims.ribWidth = 16;
 dims.ribInterval = 200;
 
 // Add rubber lining parameters
@@ -159,7 +162,6 @@ const materials = {
 // Initialize scene
 function initScene() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xBEE5FF);
   
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -167,14 +169,29 @@ function initScene() {
     0.1,
     2000
   );
+  
+
+  
+
   camera.position.set(500, 500, 500).multiplyScalar(1.5); // Zoom out further
   camera.lookAt(0, 0, 0); // Explicitly look at scene center
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, toneMapping: THREE.ACESFilmicToneMapping });
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.localClippingEnabled = true; // Enable clipping system
+
+const rgbeLoader = new RGBELoader();
+rgbeLoader.load('autumn.hdr', function(texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = texture;
+    scene.environment = texture;  // Use for reflections
+});
+ 
+
+  
 
   // Initialize clipping planes with normalized normals
   const diagonalAngle1 = Math.atan2(dims.width, dims.length);
@@ -732,8 +749,8 @@ function isInBasePlateArea(height) {
 function createRibSegment(width, startPos = 0, segmentWidth = null) {
   const points = [];
   const segments = 100;
-  const ribDepth = dims.ribDepth / 3;
-  const ribWidth = dims.ribWidth / 2;
+  const ribDepth = dims.ribDepth ;
+  const ribWidth = dims.ribWidth ;
 
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
@@ -750,7 +767,7 @@ function createRibSegment(width, startPos = 0, segmentWidth = null) {
   const extrudeSettings = {
     steps: 1,
     depth: segmentWidth || width,
-    bevelEnabled: true,
+    bevelEnabled: false,
     bevelThickness: 0.3,
     bevelSize: 0.3,
     bevelSegments: 3,
