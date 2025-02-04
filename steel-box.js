@@ -140,19 +140,19 @@ const materials = {
   }),
 
   aluminium: new THREE.MeshStandardMaterial({
-    color: 0x222222,       // Dark grey, nearly black
-    metalness: 0.7,       // Some metallic properties
-    roughness: 0.8,       // High roughness for matte finish
-    reflectivity: 0.2,    // Low reflectivity
-    clearcoat: 0.1,       // Slight clear coat
-    clearcoatRoughness: 0.9, // Very rough coat
+    color: 0xf5f5f5,      // Off-white
+    metalness: 0.6,       // Moderate metallic feel
+    roughness: 0.3,       // Smoother than matte
+    reflectivity: 0.5,    // Moderate reflectivity
+    clearcoat: 0.5,       // Medium gloss layer
+    clearcoatRoughness: 0.2, // Smooth clear coat
     transmission: 0.0,    // Opaque
     side: THREE.DoubleSide,
-    envMapIntensity: 0.5, // Minimal environment reflection
-    sheen: 0.3,           // Slight sheen effect for realism
-    sheenRoughness: 0.8,  // Diffused light scattering
-    ior: 1.45,           // Index of refraction for aluminum
-    specularIntensity: 0.5
+    envMapIntensity: 0.7, // More interaction with environment
+    sheen: 0.2,           // Soft diffuse sheen
+    sheenRoughness: 0.3,  // Slightly glossy feel
+    ior: 1.48,           // Similar to aluminum
+    specularIntensity: 0.7
   }),
 };
 
