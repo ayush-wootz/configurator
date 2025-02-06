@@ -169,7 +169,7 @@ function initScene() {
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    2000
+    5000
   );
   
 
@@ -185,7 +185,13 @@ function initScene() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.localClippingEnabled = true; // Enable clipping system
 
- 
+ // Initialize controls
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = false;
+  controls.dampingFactor = 0.05;
+  controls.minDistance = 100;   
+  controls.maxDistance = 4000;  
+  controls.maxPolarAngle = Math.PI / 1.5;   
 
   
 
@@ -219,7 +225,7 @@ function initScene() {
   document.body.appendChild(renderer.domElement);
   let globalRenderer = renderer;
 
-  return { scene, camera, renderer };
+  return { scene, camera, renderer, controls };
 }
 
 // Create rubber material with configurable color
@@ -744,7 +750,7 @@ function isInBasePlateArea(height) {
 
 function createRibSegment(width, startPos = 0, segmentWidth = null) {
   const points = [];
-  const segments = 100;
+  const segments = 30; // Reduce from 100
   const ribDepth = dims.ribDepth ;
   const ribWidth = dims.ribWidth ;
 
@@ -1095,8 +1101,8 @@ function addCastorWheels(box) {
 
 // Initialize everything
 function initBox() {
-  const { scene, camera, renderer } = initScene();
-  const controls = new OrbitControls(camera, renderer.domElement);
+  const { scene, camera, renderer, controls } = initScene();
+  // const controls = new OrbitControls(camera, renderer.domElement);
 
   // const savedPosition = getCameraPositionFromURL();
   // controls.target.copy(savedPosition.target);
