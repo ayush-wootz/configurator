@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
- import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.localClippingEnabled = true;
@@ -319,32 +319,32 @@ function addTopRubberLining(box) {
 }
 
 // Camera Changes
-function updateURLWithCameraPosition(camera, controls) {
-  const params = new URLSearchParams(window.location.search);
-  params.set('camX', camera.position.x);
-  params.set('camY', camera.position.y);
-  params.set('camZ', camera.position.z);
-  params.set('targetX', controls.target.x);
-  params.set('targetY', controls.target.y);
-  params.set('targetZ', controls.target.z);
-  window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
-}
+// function updateURLWithCameraPosition(camera, controls) {
+//   const params = new URLSearchParams(window.location.search);
+//   params.set('camX', camera.position.x);
+//   params.set('camY', camera.position.y);
+//   params.set('camZ', camera.position.z);
+//   params.set('targetX', controls.target.x);
+//   params.set('targetY', controls.target.y);
+//   params.set('targetZ', controls.target.z);
+//   window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+// }
 
-function getCameraPositionFromURL() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    position: {
-      x: parseFloat(params.get('camX')) || dims.length,
-      y: parseFloat(params.get('camY')) || dims.height,
-      z: parseFloat(params.get('camZ')) || dims.length,
-    },
-    target: {
-      x: parseFloat(params.get('targetX')) || 0,
-      y: parseFloat(params.targetY) || 0,
-      z: parseFloat(params.targetZ) || 0,
-    },
-  };
-}
+// function getCameraPositionFromURL() {
+//   const params = new URLSearchParams(window.location.search);
+//   return {
+//     position: {
+//       x: parseFloat(params.get('camX')) || dims.length,
+//       y: parseFloat(params.get('camY')) || dims.height,
+//       z: parseFloat(params.get('camZ')) || dims.length,
+//     },
+//     target: {
+//       x: parseFloat(params.get('targetX')) || 0,
+//       y: parseFloat(params.targetY) || 0,
+//       z: parseFloat(params.targetZ) || 0,
+//     },
+//   };
+// }
 
 // Function to draw the integrated handle directly on canvas
 function drawIntegratedHandle(ctx, x, y, scale) {
@@ -1098,12 +1098,13 @@ function initBox() {
   const { scene, camera, renderer } = initScene();
   const controls = new OrbitControls(camera, renderer.domElement);
 
-  const savedPosition = getCameraPositionFromURL();
-  controls.target.copy(savedPosition.target);
+  // const savedPosition = getCameraPositionFromURL();
+  // controls.target.copy(savedPosition.target);
 
-  controls.addEventListener('change', () => {
-    updateURLWithCameraPosition(camera, controls);
-  });
+  // controls.addEventListener('change', () => {
+  //   updateURLWithCameraPosition(camera, controls);
+  // }); 
+
   // Set up lighting
   addLights(scene);
 
