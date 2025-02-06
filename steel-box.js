@@ -1267,3 +1267,16 @@ function addShadowCatcher(scene) {
 
   scene.add(shadowCatcher);
 }
+
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        init();
+    }, 500); // Give embed time to fully load
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // Refresh render if needed
+        renderer.render(scene, camera);
+    }
+});
