@@ -162,6 +162,8 @@ const materials = {
 // Initialize scene
 function initScene() {
   const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xE4E4E4);
+
   
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -177,18 +179,12 @@ function initScene() {
   camera.lookAt(0, 0, 0); // Explicitly look at scene center
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, toneMapping: THREE.ACESFilmicToneMapping });
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  // renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.localClippingEnabled = true; // Enable clipping system
 
-const rgbeLoader = new RGBELoader();
-rgbeLoader.load('autumn.hdr', function(texture) {
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    scene.background = texture;
-    scene.environment = texture;  // Use for reflections
-});
  
 
   
