@@ -33,7 +33,7 @@ function getURLParameters() {
     rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0,
     materialType: urlParams.get('material') || 'steel', // aluminium, steel, mildSteel, darkSteel
     enableLid: urlParams.get('lid') === 'true' || false,
-    enableLock: urlParams.get('lock') === 'true' || false,
+    enableLock: urlParams.get('lock') === 'true' || true,
   };
 }
 
