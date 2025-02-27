@@ -18,20 +18,22 @@ let clippingPlane1, clippingPlane2, clippingPlane3, clippingPlane4;
 function getURLParameters() {
   const urlParams = new URLSearchParams(window.location.search);
   return {
-    length: parseInt(urlParams.get('len')) || 300,
+    length: parseInt(urlParams.get('len')) || 200,
     width: parseInt(urlParams.get('wid')) || 200,
     height: parseInt(urlParams.get('hei')) || 200,
     enableHandles: urlParams.get('handle') === 'true' || false,
     enablePerforation: urlParams.get('perf') === 'true' || false,
     enableWheels: urlParams.get('wheel') === 'true' || false,
     enableRibs: urlParams.get('ribs') === 'true' || false,
-    enableStraightTop: urlParams.get('straight') === 'true' || false,
+    enableStraightTop: urlParams.get('straight') === 'true' || true,
     enableRubberLining: urlParams.get('rubber') === 'true' || false,
     rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
     rubberHeight: parseInt(urlParams.get('rubberHeight')) || 5,
     rubberOverhang: parseInt(urlParams.get('rubberOverhang')) || 0,
     materialType: urlParams.get('material') || 'steel', // aluminium, steel, mildSteel, darkSteel
+    enableLid: urlParams.get('lid') === 'true' || true,
+    enableLock: urlParams.get('lock') === 'true' || true,
   };
 }
 
@@ -45,6 +47,8 @@ const config = {
   enableRibs: params.enableRibs,
   enableStraightTop: params.enableStraightTop,
   enableRubberLining: params.enableRubberLining, // Add this line
+  enableLid: params.enableLid, // Add this line
+  enableLock: params.enableLock,
 };
 
 const step_dims = {
@@ -131,7 +135,7 @@ const materials = {
   }),
   fibreglass: new THREE.MeshStandardMaterial({
     color: 0xe0e0e0,
-    metalness: 0.2,
+    metalness: 0.2, 
     roughness: 0.8,
     side: THREE.DoubleSide,
   }),
@@ -172,9 +176,6 @@ function initScene() {
     5000
   );
   
-
-  
-
   camera.position.set(500, 500, 500).multiplyScalar(1.5); // Zoom out further
   camera.lookAt(0, 0, 0); // Explicitly look at scene center
 
@@ -227,6 +228,293 @@ function initScene() {
 
   return { scene, camera, renderer, controls };
 }
+
+// LID & LOCK ASSEMBY
+function getLidYPosition() {
+    if (config.enableStraightTop) {
+      // The height already includes the extra offset for a straight top
+      return dims.height; 
+    } else {
+      // For stepped edges, dims.height is the base box height,
+      // and the stepped edges also end at dims.height (given the current code).
+      // If you want the lid exactly flush, return dims.height.
+      // If you prefer a tiny gap or an extra offset, add it below:
+      const vertOffset = step_dims.stepHeight * 2 + step_dims.stepInset * 2;
+      // Often vertOffset = 0 if stepHeight and stepInset match, 
+      // but you can add a small constant if desired (e.g., + 1 or + 2).
+      return  dims.height + vertOffset; 
+    }
+  }
+  /**
+   * Create a 3D lid that covers the top of the box.
+   * - It has a top panel plus downward flanges (lips) around each edge.
+   * - Automatically adjusts minor dimensions if "stepped top" is disabled or enabled.
+   * - Returns a THREE.Group containing all lid parts.
+   */
+  
+  function createBoxLid() {
+    const lidGroup = new THREE.Group();
+  
+    const lidThickness = 2;
+    const flangeHeight = 5;
+    const baseOverhang = config.enableStraightTop ? 2 : 2;
+  
+    const topPanelLength = dims.length + baseOverhang * 2;
+    const topPanelWidth  = dims.width  + baseOverhang * 2;
+  
+    // Main lid panel
+    const topPanelGeom = new THREE.BoxGeometry(
+      topPanelLength,
+      lidThickness,
+      topPanelWidth
+    );
+    const topPanelMesh = new THREE.Mesh(
+      topPanelGeom,
+      materials[params.materialType]
+    );
+    topPanelMesh.position.y = lidThickness / 2;
+    lidGroup.add(topPanelMesh);
+  
+    // Flange creation helper
+    function createFlange(flangeWidth, flangeDepth) {
+      const flangeGeom = new THREE.BoxGeometry(flangeWidth, flangeHeight, flangeDepth);
+      return new THREE.Mesh(flangeGeom, materials[params.materialType]);
+    }
+  
+    const flangeThickness = 2;
+  
+    // Front flange
+    const frontFlange = createFlange(topPanelLength, flangeThickness);
+    frontFlange.position.set(
+      0,
+      -flangeHeight / 2, 
+      (topPanelWidth / 2.04) + (flangeThickness / 2)
+    );
+    lidGroup.add(frontFlange);
+  
+    // Back flange
+    const backFlange = createFlange(topPanelLength, flangeThickness);
+    backFlange.position.set(
+      0,
+      -flangeHeight / 2,
+      -(topPanelWidth / 2.04) - (flangeThickness / 2)
+    );
+    lidGroup.add(backFlange);
+  
+    // Left flange
+    const leftFlange = createFlange(flangeThickness, topPanelWidth);
+    leftFlange.position.set(
+      -(topPanelLength / 2.04) - (flangeThickness / 2),
+      -flangeHeight / 2,
+      0
+    );
+    lidGroup.add(leftFlange);
+  
+    // Right flange
+    const rightFlange = createFlange(flangeThickness, topPanelWidth);
+    rightFlange.position.set(
+      (topPanelLength / 2.04) + (flangeThickness / 2),
+      -flangeHeight / 2,
+      0
+    );
+    lidGroup.add(rightFlange);
+  
+    enableShadows(lidGroup); 
+    return lidGroup;
+  }
+  
+  function positionLidForHinge(lid) {
+    const baseOverhang = config.enableStraightTop ? 2 : 5;
+    const topPanelWidth = dims.width + baseOverhang * 2;
+    lid.position.z = topPanelWidth / 2;
+  }
+  
+  // Box Lock - Catch & Tab
+   // Creating Smooth Edge Geometry
+  function createRoundedRectGeometry(width, height, roundness, depth) {
+    const shape = new THREE.Shape();
+    const x = -width / 2;
+    const y = -height / 2;
+    
+    // Start at the bottom left corner (shifted by roundness)
+    shape.moveTo(x + roundness, y);
+    // Bottom edge
+    shape.lineTo(x + width - roundness, y);
+    // Bottom-right corner
+    shape.quadraticCurveTo(x + width, y, x + width, y + roundness);
+    // Right edge
+    shape.lineTo(x + width, y + height - roundness);
+    // Top-right corner
+    shape.quadraticCurveTo(x + width, y + height, x + width - roundness, y + height);
+    // Top edge
+    shape.lineTo(x + roundness, y + height);
+    // Top-left corner
+    shape.quadraticCurveTo(x, y + height, x, y + height - roundness);
+    // Left edge
+    shape.lineTo(x, y + roundness);
+    // Bottom-left corner
+    shape.quadraticCurveTo(x, y, x + roundness, y);
+    
+    const extrudeSettings = {
+      depth: depth,
+      bevelEnabled: true,
+      bevelThickness: roundness * 0.5,
+      bevelSize: roundness,
+      bevelSegments: 3
+    };
+    
+    return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  }
+  
+   // Adding the Catch & Tab
+  function addLock(scene, box, lidGroup) {
+    // Only add the locks if enabled
+    if (!params.enableLock) return;
+  
+    // --- Lock geometry sizes (same for both locks) ---
+    // Catch (on the box front)
+    // Derive dimensions from box dimensions using ratios:
+    const catchWidth  = dims.length * 0.06;  // 6% of box length
+    const catchHeight = dims.height * 0.08;   // 8% of box height
+    const catchDepth  = dims.width  * 0.025;   // 2.5% of box width
+    const catchRoundness = 2;  // adjust for more or less rounding
+    
+    // Tab (on the lid front)
+    const tabWidth  = dims.length * 0.05;      // 5% of box length
+    const tabHeight = dims.height * 0.09;       // 9% of box height
+    const tabDepth  = dims.width  * 0.0233;      // ~2.33% of box width
+    const tabRoundness = 2; //for rounding
+  
+    // We'll place the locks at ±(0.3 * dims.length) in X
+    const xOffsets = [dims.length * 0.3, -dims.length * 0.3];
+  
+    // The box front is at z = + (dims.width / 2)
+    // The lid's front edge is at about topPanelWidth/2, from createBoxLid code
+    const baseOverhang = config.enableStraightTop ? 2 : 2; 
+    const topPanelWidth = dims.width + baseOverhang * 2;
+    const frontEdgeZ = topPanelWidth / 2;
+  
+    // Material
+    const lockMaterial = materials[params.materialType];
+  
+    // For each xOffset, build one “catch” + “tab”
+    xOffsets.forEach((xOffset) => {
+      // --- 1) Catch (on the box) --- THREE.BoxGeometry(catchWidth, catchHeight, catchDepth)
+      const catchGeom = new createRoundedRectGeometry(catchWidth, catchHeight, catchRoundness, catchDepth);
+      const catchMesh = new THREE.Mesh(catchGeom, lockMaterial);
+  
+      // Position:
+      //   x = ±(0.3 * dims.length)
+      //   y = near top => dims.height minus half the catch
+      //   z = front face => + (dims.width / 2) plus half the catch depth + a small nudge
+      catchMesh.position.set(
+        xOffset,
+        dims.height - catchHeight,
+        dims.width / 2 + catchDepth / 2 + 1
+      );
+      box.add(catchMesh);
+  
+      // --- 2) Tab (on the lid) --- THREE.BoxGeometry(tabWidth, tabHeight, tabDepth)
+      const tabGeom = new createRoundedRectGeometry(tabWidth, tabHeight, tabRoundness, tabDepth);
+      const tabMesh = new THREE.Mesh(tabGeom, lockMaterial);
+  
+      // Position in the lid’s local space:
+      //   x = ±(0.3 * dims.length)
+      //   y = so it lines up near top (the lid’s local Y=0 is the top panel)
+      //   z = frontEdgeZ + half the tab thickness, so it protrudes
+      tabMesh.position.set(
+        xOffset,
+        -tabHeight / 2,
+        frontEdgeZ + tabDepth / 2
+      );
+      lidGroup.add(tabMesh);
+    });
+  }
+  
+  
+  
+  // BoxLid Support Rods
+  function createRubberStrap({
+    strapWidth = 10,     // width of the strap (thickness in the 2D plane)
+    segment1Length = 40, // how long the first segment (parallel to wall) is
+    diagonalX = 30,      // horizontal offset for the diagonal part
+    diagonalY = 30,      // vertical offset for the diagonal part
+    strapThickness = 2,  // how "thick" the strap is in the extrusion direction
+    color = 0x111111,    // near-black rubber color
+  } = {}) {
+    // Define a 2D "L" shape in the XY plane
+    //   Segment 1: runs up from (0,0) to (0, segment1Length)
+    //   Segment 2: angled from that point to (diagonalX, diagonalY)
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.lineTo(strapWidth, 0);
+    shape.lineTo(strapWidth, segment1Length);
+    shape.lineTo(strapWidth + diagonalX, segment1Length + diagonalY);
+    shape.lineTo(0 + diagonalX, segment1Length + diagonalY);
+    shape.lineTo(0, segment1Length);
+    shape.closePath();
+  
+    const extrudeSettings = {
+      depth: strapThickness,
+      bevelEnabled: false,
+      steps: 1,
+    };
+  
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  
+    // Rubber-like material
+    const strapMaterial = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.0,
+      roughness: 0.95,
+      side: THREE.DoubleSide,
+    });
+  
+    const strapMesh = new THREE.Mesh(geometry, strapMaterial);
+    // Optionally enable shadow casting/receiving:
+    strapMesh.castShadow = true;
+    strapMesh.receiveShadow = true;
+  
+    return strapMesh;
+  }
+  
+  function addRubberStrap(scene, box, lid) {
+    // 1) Create the strap
+    const strap = createRubberStrap({
+      strapWidth: 8,
+      segment1Length: 40,
+      diagonalX: 15,
+      diagonalY: 14,
+      strapThickness: 2,
+      color: 0x222222, // dark rubber
+    });
+  
+    // 2) Position it so the bottom anchor is near the box’s top edge.
+    //    Suppose we attach it to the left side, near the back:
+    strap.position.set(
+      -dims.length / 2 + 10, // left side offset
+      dims.height - 10,      // slightly below the box top
+      -dims.width / 2 + 3   // near the back edge
+    );
+  
+    // 3) Rotate so it lines up with the box wall and the lid
+    //    This is just an example guess:
+    //    - rotate around Y so the strap is oriented inward
+    strap.rotation.y = THREE.MathUtils.degToRad(5);
+    //    - maybe rotate around X a bit so it lines up with the angled lid
+    strap.rotation.x = THREE.MathUtils.degToRad(5);
+  
+    // 4) Add to the scene
+    scene.add(strap);
+  
+    // If you want a second strap on the other side, just clone or create another.
+    // For example:
+    const strapRight = strap.clone();
+    strapRight.position.x = dims.length / 2 - 20;  // move to right side
+    strapRight.rotation.y = THREE.MathUtils.degToRad(-5); // mirror the Y rotation
+    scene.add(strapRight);
+  }
+  
 
 // Create rubber material with configurable color
 function createRubberMaterial(color) {
@@ -324,33 +612,6 @@ function addTopRubberLining(box) {
   });
 }
 
-// Camera Changes
-// function updateURLWithCameraPosition(camera, controls) {
-//   const params = new URLSearchParams(window.location.search);
-//   params.set('camX', camera.position.x);
-//   params.set('camY', camera.position.y);
-//   params.set('camZ', camera.position.z);
-//   params.set('targetX', controls.target.x);
-//   params.set('targetY', controls.target.y);
-//   params.set('targetZ', controls.target.z);
-//   window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
-// }
-
-// function getCameraPositionFromURL() {
-//   const params = new URLSearchParams(window.location.search);
-//   return {
-//     position: {
-//       x: parseFloat(params.get('camX')) || dims.length,
-//       y: parseFloat(params.get('camY')) || dims.height,
-//       z: parseFloat(params.get('camZ')) || dims.length,
-//     },
-//     target: {
-//       x: parseFloat(params.get('targetX')) || 0,
-//       y: parseFloat(params.targetY) || 0,
-//       z: parseFloat(params.targetZ) || 0,
-//     },
-//   };
-// }
 
 // Function to draw the integrated handle directly on canvas
 function drawIntegratedHandle(ctx, x, y, scale) {
@@ -538,14 +799,6 @@ function createPerforatedWall(width, height, isHandleSide = true) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
 
-  // const material = new THREE.MeshStandardMaterial({
-  //     map: texture,
-  //     metalness: 0.8,
-  //     roughness: 0.3,
-  //     side: THREE.DoubleSide,
-  //     alphaTest: 0.5,
-  //     transparent: true
-  // });
   // Clone the user-selected material and add our texture
   const material = materials[params.materialType].clone();
   material.map = texture;
@@ -634,10 +887,6 @@ function createHandleCutoutTexture(width, height) {
 }
 
 
-
-
-
-
 // Create wheel components
 function createWheelSpokes() {
   const spokes = new THREE.Group();
@@ -709,7 +958,6 @@ function createCastorWheel() {
   return wheel;
 }
 
-// Continue with Part 3?
 
 // Add these functions before createBox
 function calculateRibPositions(totalHeight) {
@@ -726,11 +974,6 @@ function calculateRibPositions(totalHeight) {
   return positions;
 }
 
-// function isInBasePlateArea(height) {
-//     const handleCenterY = dims.height / 2 - dims.basePlateYposition;
-//     const totalBasePlateArea = dims.basePlateHeight;
-//     return Math.abs(height - handleCenterY) < (totalBasePlateArea / 2);
-// }
 function isInBasePlateArea(height) {
   const handleCenterY = dims.height / 2 - dims.basePlateYposition;
 
@@ -1102,14 +1345,6 @@ function addCastorWheels(box) {
 // Initialize everything
 function initBox() {
   const { scene, camera, renderer, controls } = initScene();
-  // const controls = new OrbitControls(camera, renderer.domElement);
-
-  // const savedPosition = getCameraPositionFromURL();
-  // controls.target.copy(savedPosition.target);
-
-  // controls.addEventListener('change', () => {
-  //   updateURLWithCameraPosition(camera, controls);
-  // }); 
 
   // Set up lighting
   addLights(scene);
@@ -1150,6 +1385,38 @@ function initBox() {
     },
     false
   );
+
+  if (config.enableLid) {
+    // 1) Create the lid using your function
+    const lid = createBoxLid();
+
+    // 2) Shift it so the back edge is at lidGroup's local origin
+    positionLidForHinge(lid);
+
+    // 3) Create a new pivot group (with no rotation)
+    const pivotGroup = new THREE.Group();
+
+    // 4) Add the rotated lid to the pivot group
+    pivotGroup.add(lid);
+
+    // 5) Position the pivot at the box's top back edge
+    //    (Typically, the back edge is at z = -dims.width/2 and the top is at y = dims.height.
+    //     Here we add some extra offsets (+4 in y and -5 in z) for fine-tuning.)
+    pivotGroup.position.set(0, getLidYPosition() + 3, -(dims.width / 2) - 3);
+
+    // 6) Rotate the pivot group 45° so it stands upright (flips up from the back)
+    pivotGroup.rotation.x = -Math.PI / 4; 
+
+    // Finally, add the pivot group to the scene.
+    scene.add(pivotGroup);
+    if (params.enableLock) {
+  // box is the main box group
+  // pivotGroup is the group containing the lid
+  // the actual lid object is pivotGroup.children[0], or you can pass pivotGroup if you prefer
+      addLock(scene, box, lid); 
+  // OR: addLock(scene, box, lid);
+    }
+  }
 
   return box;
 }
@@ -1201,12 +1468,7 @@ function createBox() {
   ];
 
   wallConfigs.forEach(({ width, height, position, rotation, isHandleSide }) => {
-    // const wall = config.enablePerforation
-    //   ? createPerforatedWall(width, height, isHandleSide)
-    //   : new THREE.Mesh(
-    //       new THREE.PlaneGeometry(width, height),
-    //       materials[params.materialType]
-    //     );
+
     const wall = createWallWithHandle(width, height, isHandleSide);
 
     wall.position.set(...position);
