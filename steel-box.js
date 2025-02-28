@@ -12,7 +12,8 @@ const RUBBER_COLORS = {
   steel: '0xC0C0C0', // Steel Grey
 };
 
-
+// Global variables for scene, camera, and renderer
+let scene, camera, renderer, controls;
 let clippingPlane1, clippingPlane2, clippingPlane3, clippingPlane4;
 
 function getURLParameters() {
@@ -25,7 +26,7 @@ function getURLParameters() {
     enablePerforation: urlParams.get('perf') === 'true' || false,
     enableWheels: urlParams.get('wheel') === 'true' || false,
     enableRibs: urlParams.get('ribs') === 'true' || false,
-    enableStraightTop: urlParams.get('pet') === 'true' || true,
+    enableStraightTop: urlParams.get('straight') === 'true' || false,
     enableRubberLining: urlParams.get('rubber') === 'true' || false,
     rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
@@ -60,16 +61,17 @@ const step_dims = {
 const dims = {
   length: params.length,
   width: params.width,
-  height:
-    params.height +
-    (config.enableStraightTop
-      ? step_dims.stepHeight * 2 + step_dims.stepInset * 2
-      : 0),
+  height: params.height,
   thickness: 2,
   wheelDiameter: 42,
   wheelThickness: 10,
   wheelOffset: 30,
 };
+
+// Only adjust the height for stepped top, not for straight top
+if (!config.enableStraightTop) {
+  dims.height += (step_dims.stepHeight * 2 + step_dims.stepInset * 2);
+}
 
 // Dynamic handle dimensions
 dims.basePlateWidth = Math.min(dims.width * 0.6, 130);
@@ -165,11 +167,11 @@ const materials = {
 
 // Initialize scene
 function initScene() {
-  const scene = new THREE.Scene();
+  scene = new THREE.Scene();
   scene.background = new THREE.Color(0xE4E4E4);
 
   
-  const camera = new THREE.PerspectiveCamera(
+  camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
@@ -179,7 +181,7 @@ function initScene() {
   camera.position.set(500, 500, 500).multiplyScalar(1.5); // Zoom out further
   camera.lookAt(0, 0, 0); // Explicitly look at scene center
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, toneMapping: THREE.ACESFilmicToneMapping });
+  renderer = new THREE.WebGLRenderer({ antialias: true, toneMapping: THREE.ACESFilmicToneMapping });
   // renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
@@ -187,7 +189,7 @@ function initScene() {
   renderer.localClippingEnabled = true; // Enable clipping system
 
  // Initialize controls
-  const controls = new OrbitControls(camera, renderer.domElement);
+  controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = false;
   controls.dampingFactor = 0.05;
   controls.minDistance = 100;   
@@ -224,7 +226,6 @@ function initScene() {
   clippingPlane4.normal.negate();
 
   document.body.appendChild(renderer.domElement);
-  let globalRenderer = renderer;
 
   return { scene, camera, renderer, controls };
 }
@@ -239,10 +240,8 @@ function getLidYPosition() {
       // and the stepped edges also end at dims.height (given the current code).
       // If you want the lid exactly flush, return dims.height.
       // If you prefer a tiny gap or an extra offset, add it below:
-      const vertOffset = step_dims.stepHeight * 2 + step_dims.stepInset * 2;
-      // Often vertOffset = 0 if stepHeight and stepInset match, 
-      // but you can add a small constant if desired (e.g., + 1 or + 2).
-      return  dims.height + vertOffset; 
+      const vertOffset = 0; // No extra offset needed since we adjust height earlier
+      return dims.height + vertOffset; 
     }
   }
   /**
@@ -397,7 +396,7 @@ function getLidYPosition() {
     // Material
     const lockMaterial = materials[params.materialType];
   
-    // For each xOffset, build one “catch” + “tab”
+    // For each xOffset, build one "catch" + "tab"
     xOffsets.forEach((xOffset) => {
       // --- 1) Catch (on the box) --- THREE.BoxGeometry(catchWidth, catchHeight, catchDepth)
       const catchGeom = new createRoundedRectGeometry(catchWidth, catchHeight, catchRoundness, catchDepth);
@@ -418,9 +417,9 @@ function getLidYPosition() {
       const tabGeom = new createRoundedRectGeometry(tabWidth, tabHeight, tabRoundness, tabDepth);
       const tabMesh = new THREE.Mesh(tabGeom, lockMaterial);
   
-      // Position in the lid’s local space:
+      // Position in the lid's local space:
       //   x = ±(0.3 * dims.length)
-      //   y = so it lines up near top (the lid’s local Y=0 is the top panel)
+      //   y = so it lines up near top (the lid's local Y=0 is the top panel)
       //   z = frontEdgeZ + half the tab thickness, so it protrudes
       tabMesh.position.set(
         xOffset,
@@ -489,7 +488,7 @@ function getLidYPosition() {
       color: 0x222222, // dark rubber
     });
   
-    // 2) Position it so the bottom anchor is near the box’s top edge.
+    // 2) Position it so the bottom anchor is near the box's top edge.
     //    Suppose we attach it to the left side, near the back:
     strap.position.set(
       -dims.length / 2 + 10, // left side offset
@@ -725,6 +724,8 @@ function createHandleRim(width, height, isHandleSide = false) {
 
 // // Modified perforated wall creation to include integrated handle
 // Keep drawIntegratedHandle and createHandleRim functions exactly as they are
+
+
 
 function createPerforatedWall(width, height, isHandleSide = true) {
   // Create a group to hold both wall and rim
@@ -1059,7 +1060,13 @@ function createSteppedEdge(length, material) {
 }
 
 function addSteppedEdges(box) {
-  if (config.enableStraightTop) return;
+  // Add debug log
+  console.log("Adding stepped edges, enableStraightTop:", config.enableStraightTop);
+  
+  if (config.enableStraightTop) {
+    console.log("Skipping stepped edges due to straight top setting");
+    return;
+  }
 
   const vertOffset = step_dims.stepHeight * 2 - step_dims.stepInset * 2;
   const edgeGap = 0;
@@ -1422,7 +1429,32 @@ function initBox() {
 }
 
 // Start the application
-const box = initBox();
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    initBox(); // Call initBox instead of init
+    
+    // Add debug information
+    const debugDiv = document.createElement('div');
+    debugDiv.style.position = 'fixed';
+    debugDiv.style.bottom = '10px';
+    debugDiv.style.left = '10px';
+    debugDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    debugDiv.style.color = 'white';
+    debugDiv.style.padding = '10px';
+    debugDiv.style.fontFamily = 'monospace';
+    debugDiv.style.zIndex = '9999';
+    
+    debugDiv.innerHTML = `
+      <h3>Box Parameters</h3>
+      <p>URL Parameters: ${window.location.search}</p>
+      <p>straight param: ${new URLSearchParams(window.location.search).get('straight')}</p>
+      <p>enableStraightTop: ${config.enableStraightTop}</p>
+      <p>Box Height: ${dims.height}px</p>
+    `;
+    
+    document.body.appendChild(debugDiv);
+  }, 500); // Give embed time to fully load
+});
 
 function createBox() {
   const box = new THREE.Group();
@@ -1537,15 +1569,10 @@ function addShadowCatcher(scene) {
   scene.add(shadowCatcher);
 }
 
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        init();
-    }, 500); // Give embed time to fully load
-});
-
+// Fix for visibility change event
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        // Refresh render if needed
-        renderer.render(scene, camera);
-    }
+  if (document.visibilityState === 'visible' && renderer && scene && camera) {
+    // Refresh render if needed
+    renderer.render(scene, camera);
+  }
 });
