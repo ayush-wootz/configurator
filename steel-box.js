@@ -25,7 +25,7 @@ function getURLParameters() {
     enablePerforation: urlParams.get('perf') === 'true' || false,
     enableWheels: urlParams.get('wheel') === 'true' || false,
     enableRibs: urlParams.get('ribs') === 'true' || false,
-    enableStraightTop: urlParams.get('straight') === 'true' || true,
+    enableStraightTop: urlParams.get('pet') === 'true' || true,
     enableRubberLining: urlParams.get('rubber') === 'true' || false,
     rubberColor: RUBBER_COLORS[urlParams.get('rubberColor') || 'blue'],
     rubberThickness: parseInt(urlParams.get('rubberThick')) || 2,
